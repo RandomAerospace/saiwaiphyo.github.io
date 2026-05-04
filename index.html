@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sai Wai Phyo — Emerging Engineer</title>
+<style>
+  /* Academic Brutalist — Information density over aesthetics */
+  :root {
+    --black: #000000;
+    --white: #ffffff;
+    --gray: #666666;
+    --light-gray: #f0f0f0;
+    --border: #000000;
+    --accent: #cc0000; /* single red accent, like a correction pen */
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: "Times New Roman", Times, serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--black);
+    background: var(--white);
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 20px;
+  }
+
+  /* Header — pure information, no decoration */
+  header {
+    border-bottom: 2px solid var(--black);
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+  }
+
+  header h1 {
+    font-size: 28px;
+    font-weight: bold;
+    letter-spacing: 0;
+    margin-bottom: 4px;
+  }
+
+  header .subtitle {
+    font-size: 14px;
+    color: var(--gray);
+    font-style: italic;
+    margin-bottom: 8px;
+  }
+
+  header .contact-line {
+    font-size: 13px;
+    font-family: "Courier New", monospace;
+  }
+
+  header .contact-line a {
+    color: var(--black);
+    text-decoration: none;
+    border-bottom: 1px solid var(--black);
+  }
+
+  header .contact-line a:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  header .contact-line span {
+    margin: 0 8px;
+    color: var(--gray);
+  }
+
+  /* Navigation — plain text links */
+  nav {
+    margin-bottom: 32px;
+    font-size: 13px;
+    font-family: "Courier New", monospace;
+  }
+
+  nav a {
+    color: var(--black);
+    text-decoration: none;
+    margin-right: 20px;
+    border-bottom: 1px solid transparent;
+  }
+
+  nav a:hover {
+    border-bottom: 1px solid var(--black);
+  }
+
+  /* Section headers */
+  h2 {
+    font-size: 16px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--black);
+    padding-bottom: 4px;
+    margin-bottom: 16px;
+    margin-top: 32px;
+  }
+
+  h3 {
+    font-size: 14px;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+
+  /* Profile section */
+  .profile {
+    margin-bottom: 24px;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  /* Stats bar — the numbers that matter */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border: 1px solid var(--black);
+    margin-bottom: 32px;
+  }
+
+  .stat {
+    padding: 12px;
+    border-right: 1px solid var(--black);
+    text-align: center;
+  }
+
+  .stat:last-child {
+    border-right: none;
+  }
+
+  .stat-number {
+    font-size: 22px;
+    font-weight: bold;
+    font-family: "Courier New", monospace;
+    color: var(--accent);
+    display: block;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--gray);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* Project entries */
+  .project {
+    margin-bottom: 28px;
+    padding-bottom: 28px;
+    border-bottom: 1px dashed #ccc;
+  }
+
+  .project:last-child {
+    border-bottom: none;
+  }
+
+  .project-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+  }
+
+  .project-title {
+    font-size: 15px;
+    font-weight: bold;
+  }
+
+  .project-date {
+    font-size: 12px;
+    color: var(--gray);
+    font-family: "Courier New", monospace;
+    white-space: nowrap;
+  }
+
+  .project-org {
+    font-size: 13px;
+    font-style: italic;
+    color: var(--gray);
+    margin-bottom: 6px;
+  }
+
+  .project-desc {
+    font-size: 13px;
+    line-height: 1.6;
+    margin-bottom: 8px;
+  }
+
+  /* Tags */
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 8px;
+  }
+
+  .tag {
+    font-family: "Courier New", monospace;
+    font-size: 11px;
+    border: 1px solid var(--black);
+    padding: 1px 6px;
+    background: var(--white);
+  }
+
+  .tag.highlight {
+    background: var(--black);
+    color: var(--white);
+  }
+
+  /* Metrics */
+  .metrics {
+    background: var(--light-gray);
+    border-left: 3px solid var(--accent);
+    padding: 8px 12px;
+    margin: 8px 0;
+    font-family: "Courier New", monospace;
+    font-size: 12px;
+  }
+
+  .metrics span {
+    display: inline-block;
+    margin-right: 20px;
+    font-weight: bold;
+  }
+
+  /* Skills table */
+  .skills-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border: 1px solid var(--black);
+    margin-bottom: 16px;
+  }
+
+  .skill-category {
+    padding: 12px;
+    border-right: 1px solid var(--black);
+    border-bottom: 1px solid var(--black);
+  }
+
+  .skill-category:nth-child(even) {
+    border-right: none;
+  }
+
+  .skill-category:nth-last-child(-n+2) {
+    border-bottom: none;
+  }
+
+  .skill-category h4 {
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+    color: var(--accent);
+  }
+
+  .skill-category p {
+    font-size: 12px;
+    font-family: "Courier New", monospace;
+    line-height: 1.8;
+    color: var(--gray);
+  }
+
+  /* Experience entries */
+  .experience {
+    margin-bottom: 20px;
+  }
+
+  .exp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .exp-date {
+    font-size: 12px;
+    color: var(--gray);
+    font-family: "Courier New", monospace;
+    white-space: nowrap;
+  }
+
+  .exp-bullets {
+    margin: 6px 0 0 16px;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+
+  .exp-bullets li {
+    margin-bottom: 3px;
+  }
+
+  /* Credentials */
+  .credentials {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .credential {
+    border: 1px solid var(--black);
+    padding: 10px;
+    font-size: 12px;
+  }
+
+  .credential .cred-title {
+    font-weight: bold;
+    margin-bottom: 2px;
+  }
+
+  .credential .cred-detail {
+    font-family: "Courier New", monospace;
+    color: var(--gray);
+  }
+
+  /* Footer */
+  footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 2px solid var(--black);
+    font-size: 12px;
+    color: var(--gray);
+    font-family: "Courier New", monospace;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* Status indicator */
+  .status {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    margin-right: 6px;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .availability {
+    font-family: "Courier New", monospace;
+    font-size: 12px;
+    margin-bottom: 24px;
+    padding: 8px 12px;
+    border: 1px solid var(--black);
+    display: inline-block;
+  }
+
+  /* Links */
+  a {
+    color: var(--black);
+  }
+
+  a:hover {
+    color: var(--accent);
+  }
+
+  /* Print friendliness */
+  @media print {
+    .status { animation: none; }
+    body { font-size: 12px; }
+  }
+
+  @media (max-width: 600px) {
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    .skills-grid { grid-template-columns: 1fr; }
+    .credentials { grid-template-columns: 1fr; }
+    .project-header { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Sai Wai Phyo</h1>
+  <div class="subtitle">Emerging Engineer — Propulsion · RF Systems · Maritime Autonomy </div>
+  <div class="contact-line">
+    <a href="mailto:e1527360@u.nus.edu">e1527360@u.nus.edu</a>
+    <span>·</span>
+    <a href="tel:+6581735960">+65 8173 5960</a>
+    <span>·</span>
+    <a href="https://twitter.com/RcSboii" target="_blank">@RcSboii</a>
+    <span>·</span>
+    <a href="https://linkedin.com/in/saiwaiphyord180" target="_blank">LinkedIn</a>
+    <span>·</span>
+    <a href="https://github.com/RandomAerospace" target="_blank">GitHub/RandomAerospace</a>
+    <span>·</span>
+    Singapore
+  </div>
+</header>
+
+<nav>
+  <a href="#profile">Profile</a>
+  <a href="#projects">Projects</a>
+  <a href="#experience">Experience</a>
+  <a href="#skills">Skills</a>
+  <a href="#credentials">Credentials</a>
+</nav>
+
+<div class="availability">
+  <span class="status"></span>
+  Available: Summer Internship (Jun – Dec 2027) · 3 or 6-month engagements preferred · H-1B1 / J-1 visa eligible (no lottery)
+</div>
+
+<!-- PROFILE -->
+<section id="profile">
+  <h2>Profile</h2>
+  <div class="profile">
+    <p>
+      I build hardware that has to work in environments where failure is not an option — from liquid rocket engines at 650psi to subsea RF antenna systems to stratospheric payloads. My core strength is systems integration across mechanical, electrical, and software domains: taking a subsystem from requirements to test in the shortest possible time, questioning every inherited assumption along the way.
+    </p>
+    <br>
+    <p>
+      Currently a Year 1 Electrical Engineering student at NUS. Formerly Aeronautical Engineering (Diploma, GPA 3.75/4.0) at Singapore Polytechnic. Self-taught in liquid propulsion, RF front-end design, FPGA-based signal processing, and embedded systems — not from coursework but from building things and letting reality correct the model.
+    </p>
+    <br>
+    <p>
+      As a Singapore citizen, I qualify for the <strong>H-1B1 and J-1 visas</strong>, which bypass the standard US visa lottery entirely.
+    </p>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat">
+      <span class="stat-number">87%</span>
+      <span class="stat-label">Cost reduction, BeeX subsea RF antenna</span>
+    </div>
+    <div class="stat">
+      <span class="stat-number">46%</span>
+      <span class="stat-label">Sea trial data throughput increase</span>
+    </div>
+    <div class="stat">
+      <span class="stat-number">540N</span>
+      <span class="stat-label">Peak thrust, self-designed LRE</span>
+    </div>
+    <div class="stat">
+      <span class="stat-number">3</span>
+      <span class="stat-label">Balloon flights with self-designed avionics</span>
+    </div>
+  </div>
+</section>
+
+<!-- PROJECTS -->
+<section id="projects">
+  <h2>Projects</h2>
+
+  <div class="project">
+    <div class="project-header">
+      <div class="project-title">Balloon Experiments with Amateur Radio (BEAR) — Payload Avionics</div>
+      <div class="project-date">Aug 2024 – Present</div>
+    </div>
+    <div class="project-org">SARTS · NUS STAR Centre · Personal</div>
+    <div class="project-desc">
+      Multi-flight high-altitude balloon programme with entirely self-designed and self-built avionics hardware. Three distinct missions flown to date, each with different RF and systems objectives.
+    </div>
+    <div class="metrics">
+      <span>BEAR-11: 7,966m altitude · RTTY/FSK @ 432.600MHz</span>
+      <span>BEAR-12: WSPR on 20m amateur band · super pressure balloon</span>
+      <span>BEAR-13: Live video from stratosphere @ 1.28GHz</span>
+    </div>
+    <div class="project-desc">
+      <strong>BEAR-13 (Live Video):</strong> Custom 4-layer impedance-controlled PCB designed in KiCad with CPW calculator for GNSS RF frontend bandpass filter. ESP32-based state machine handling RF transceiver operation, battery heater control, and altitude-triggered nichrome wire payload cutter. Link budget validated using RF power meter and calibrated attenuators prior to flight. FM carrier modulated by AFSK audio tones from ESP32 DAC @ 144.390MHz. Independently credited on NUS ECE Department official news page.
+    </div>
+    <div class="tags">
+      <span class="tag highlight">Flown Hardware</span>
+      <span class="tag">KiCad 4-layer PCB</span>
+      <span class="tag">RF Link Budget</span>
+      <span class="tag">ESP32 Firmware</span>
+      <span class="tag">FSK/AFSK</span>
+      <span class="tag">GNSS</span>
+      <span class="tag">1.28GHz Video TX</span>
+      <span class="tag">WSPR</span>
+      <span class="tag">Impedance Matching</span>
+    </div>
+    <br>
+    <div style="font-size:12px; font-family: 'Courier New', monospace;">
+      Hardware: <a href="https://github.com/RandomAerospace/COMMS-BOARD" target="_blank">github.com/RandomAerospace/COMMS-BOARD</a> ·
+      Firmware: <a href="https://github.com/RandomAerospace/BEAR13_FIRMWARE" target="_blank">github.com/RandomAerospace/BEAR13_FIRMWARE</a>
+    </div>
+  </div>
+
+  <div class="project">
+    <div class="project-header">
+      <div class="project-title">Liquid Propulsion Development — Multiple Engine Variants</div>
+      <div class="project-date">Sep 2022 – Present</div>
+    </div>
+    <div class="project-org">Singapore Polytechnic · Volunteer Technical Lead · Self-directed</div>
+    <div class="project-desc">
+      Self-taught design, fabrication, and hotfire testing of multiple liquid rocket engine variants. Believed to be the only student in Singapore to have independently designed and hotfired liquid engines from scratch. All engines self-funded; all designs originated from first principles rather than copied reference designs.
+    </div>
+    <div class="metrics">
+      <span>V1: 550N · 650psi · N₂O/EtOH · Impinging injector</span>
+      <span>V2: 540N · 400psi · N₂O/IPA · Pintle injector · Design-to-hotfire: 6 months</span>
+      <span>V3: 600N · Regeneratively cooled · AlSi10Mg additive manufactured chamber</span>
+    </div>
+    <div class="project-desc">
+      Full test infrastructure designed and built from scratch: pressure feed system (1200psi, 0.3kg/s N₂O), custom DAQ system (432Hz pressure / 10Hz load cell, Python/Linux), torch ignitor, structural test stand. Mentored 12 students across the programme. Current work: throttling valve with custom FOC-based feedback controller (Temasek Laboratories collaboration).
+    </div>
+    <div class="tags">
+      <span class="tag highlight">Hotfire Validated</span>
+      <span class="tag">Pintle Injector</span>
+      <span class="tag">Regen Cooling</span>
+      <span class="tag">Pressure Feed System</span>
+      <span class="tag">Custom DAQ</span>
+      <span class="tag">CATIA</span>
+      <span class="tag">SolidWorks</span>
+      <span class="tag">Additive Manufacturing</span>
+      <span class="tag">GD&T</span>
+    </div>
+  </div>
+
+  <div class="project">
+    <div class="project-header">
+      <div class="project-title">FPGA-Based Spectrum Analyser</div>
+      <div class="project-date">Mar 2026 – Apr 2026</div>
+    </div>
+    <div class="project-org">EE2026 · NUS</div>
+    <div class="project-desc">
+      Band-pass, low-pass, and high-pass digital FIR filters designed and simulated in GNU Radio, then implemented sequentially in Verilog on FPGA. FFT core generated using CMU's SPIRAL FFT Core Generator, configured for target transform size, data bit-width, and LUT/DSP resource constraints.
+    </div>
+    <div class="tags">
+      <span class="tag highlight">Implemented on Silicon</span>
+      <span class="tag">Verilog</span>
+      <span class="tag">GNU Radio</span>
+      <span class="tag">FIR Filters</span>
+      <span class="tag">FFT IP Core</span>
+      <span class="tag">FPGA</span>
+    </div>
+  </div>
+
+  <div class="project">
+    <div class="project-header">
+      <div class="project-title">Custom SDR: CDMA/TDMA RF Front End with TCP/IP Stack</div>
+      <div class="project-date">Summer 2026 – Ongoing</div>
+    </div>
+    <div class="project-org">Personal</div>
+    <div class="project-desc">
+      Fully custom software-defined radio with DIY RF front end PCB — not a HackRF or USRP derivative. CDMA and TDMA multiple access protocols implemented in GNU Radio on FPGA digital baseband. 30dBm power amplifier on custom PCB. Full stack from antenna interface through waveform to TCP/IP networking layer. Target application: multi-node communications for autonomous vehicle fleet operations.
+    </div>
+    <div class="tags">
+      <span class="tag highlight">In Progress</span>
+      <span class="tag">Custom RF Front End PCB</span>
+      <span class="tag">30dBm PA</span>
+      <span class="tag">CDMA/TDMA</span>
+      <span class="tag">GNU Radio</span>
+      <span class="tag">FPGA</span>
+      <span class="tag">TCP/IP</span>
+      <span class="tag">KiCad</span>
+    </div>
+  </div>
+
+  <div class="project">
+    <div class="project-header">
+      <div class="project-title">DIY GNSS Receiver — COCOM Limit Target</div>
+      <div class="project-date">2026 – Ongoing</div>
+    </div>
+    <div class="project-org">Personal</div>
+    <div class="project-desc">
+      Ground-up GNSS receiver design targeting operation beyond COCOM altitude and velocity limits — constraints baked into commercial receivers that prevent operation on high-speed or high-altitude platforms. To be flown on a sounding rocket. Custom RF front end, correlator architecture, and navigation filter.
+    </div>
+    <div class="tags">
+      <span class="tag highlight">In Progress</span>
+      <span class="tag">GNSS RF Front End</span>
+      <span class="tag">Correlator Design</span>
+      <span class="tag">Navigation Filter</span>
+      <span class="tag">Sounding Rocket Payload</span>
+    </div>
+  </div>
+
+</section>
+
+<!-- EXPERIENCE -->
+<section id="experience">
+  <h2>Professional Experience</h2>
+
+  <div class="experience">
+    <div class="exp-header">
+      <h3>Electrical Engineering Intern — BeeX Autonomous Systems</h3>
+      <div class="exp-date">May 2025 – Aug 2025</div>
+    </div>
+    <div class="project-org">Singapore</div>
+    <ul class="exp-bullets">
+      <li>Engineered electrical and mechanical design of potted subsea RF antenna for GNSS/L-Band and MIMO, optimising for spatial and polarisation diversity. <strong>Result: 87% production cost reduction, 46% sea trial data throughput increase.</strong></li>
+      <li>Antenna characterisation via range tests; selection criteria: radiation pattern, polarisation, gain from component datasheets.</li>
+      <li>Component testing and diagnosis of power electronics boards (MOSFET, Ideal Diode Controller) using DC electronic load, DC power supply, multimeter.</li>
+      <li>On-site and lab troubleshooting of IP network for vehicle controls.</li>
+      <li>Mechanical design of antenna guard in SolidWorks: DFM for O-ring grooves, FEA, generation of machining drawings.</li>
+      <li>Preliminary mechanical and electrical design of RTK base station.</li>
+    </ul>
+  </div>
+
+  <div class="experience">
+    <div class="exp-header">
+      <h3>Undergraduate Researcher — Temasek Laboratories @ NUS</h3>
+      <div class="exp-date">Summer 2026</div>
+    </div>
+    <div class="project-org">Fluid Dynamics and Combustion Domain · Singapore · NDA</div>
+    <ul class="exp-bullets">
+      <li>Collaborating with PhD researchers on propulsion-adjacent hardware development.</li>
+      <li>Specific work scope protected under NDA.</li>
+    </ul>
+  </div>
+
+  <div class="experience">
+    <div class="exp-header">
+      <h3>Technical Executive — Singapore Polytechnic</h3>
+      <div class="exp-date">Apr 2023 – Jun 2023</div>
+    </div>
+    <ul class="exp-bullets">
+      <li>Managed propulsion development lab. Developed 4-week knowledge transfer curriculum for project handover.</li>
+      <li>Mentored 2 students.</li>
+    </ul>
+  </div>
+
+  <div class="experience">
+    <div class="exp-header">
+      <h3>Volunteer Junior Propulsion Engineer — Equatorial Space Systems</h3>
+      <div class="exp-date">Jun 2021 – Aug 2021</div>
+    </div>
+    <ul class="exp-bullets">
+      <li>Fluid systems, structures, and layout design for chilled nitrous fill system on 2.5kN sub-scale hybrid rocket engine (defence customer). Tools: Inventor.</li>
+    </ul>
+  </div>
+
+  <div class="experience">
+    <div class="exp-header">
+      <h3>3rd Sergeant Automotive Technician — Singapore Armed Forces</h3>
+      <div class="exp-date">Dec 2023 – May 2025</div>
+    </div>
+    <ul class="exp-bullets">
+      <li>Led section of 4 in daily maintenance. Serviced MAN TGA/TGS, Ford Everest OUV per OEM schedules. Documentation per ISO 9002/14002.</li>
+    </ul>
+  </div>
+
+</section>
+
+<!-- ORGANISATIONS -->
+<section>
+  <h2>Student Organisations</h2>
+  <div class="experience">
+    <div class="exp-header">
+      <h3>Electrical Engineer — Bumblebee Autonomous Systems NUS</h3>
+      <div class="exp-date">Apr 2026 – Present</div>
+    </div>
+    <div class="project-org">I²C Electrical Subteam · Robosub · RobotX</div>
+    <ul class="exp-bullets">
+      <li>Electrical systems for student-designed AUV and ASV competition platforms.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- SKILLS -->
+<section id="skills">
+  <h2>Skills</h2>
+  <div class="skills-grid">
+    <div class="skill-category">
+      <h4>RF & Communications</h4>
+      <p>Antenna design & characterisation · Subsea RF systems · Impedance matching · Link budget analysis · FSK · BPSK/QPSK · CDMA/TDMA · SDR · Spectrum analysis · GNSS · RF front-end hardware · KiCad impedance-controlled PCB · GNU Radio · LTspice</p>
+    </div>
+    <div class="skill-category">
+      <h4>FPGA & Digital Design</h4>
+      <p>Verilog · Vivado HLS · FIR filter implementation · FFT IP core integration · Spectrum analyser · Digital baseband · Altium Designer · KiCad</p>
+    </div>
+    <div class="skill-category">
+      <h4>Propulsion & Mechanical</h4>
+      <p>Liquid rocket engine design · Injector design (impinging, pintle) · Pressure feed systems · Regenerative cooling · Hotfire test infrastructure · SolidWorks · CATIA · Inventor · GD&T · DFM · FEA · Machining drawings</p>
+    </div>
+    <div class="skill-category">
+      <h4>Embedded & Software</h4>
+      <p>Arduino · ESP32 · C/C++ · Python · Linux · Embedded firmware · State machines · DAQ systems · IP networking · ROS2 (developing) · Git</p>
+    </div>
+  </div>
+</section>
+
+<!-- EDUCATION -->
+<section>
+  <h2>Education</h2>
+  <div class="experience">
+    <div class="exp-header">
+      <h3>Bachelor of Electrical Engineering — National University of Singapore</h3>
+      <div class="exp-date">Aug 2025 – May 2029</div>
+    </div>
+    <p style="font-size:13px; margin-top:4px;">Year 1 · Singapore</p>
+  </div>
+  <div class="experience">
+    <div class="exp-header">
+      <h3>Diploma in Aeronautical Engineering — Singapore Polytechnic</h3>
+      <div class="exp-date">Mar 2020 – Mar 2023</div>
+    </div>
+    <p style="font-size:13px; margin-top:4px;">Cumulative GPA: 3.75 / 4.0 · FYP Grade: Distinction · Silver Award, SP Engineering Show 2023</p>
+  </div>
+</section>
+
+<!-- CREDENTIALS -->
+<section id="credentials">
+  <h2>Licences & Awards</h2>
+  <div class="credentials">
+    <div class="credential">
+      <div class="cred-title">Amateur Radio — Singapore</div>
+      <div class="cred-detail">9V1WP · General (Class B)</div>
+    </div>
+    <div class="credential">
+      <div class="cred-title">FCC Amateur Radio — USA</div>
+      <div class="cred-detail">KF0MBH · General</div>
+    </div>
+    <div class="credential">
+      <div class="cred-title">Distinction — Intl. Space Challenge 2023</div>
+      <div class="cred-detail">LiDAR satellite mission proposal · Space Faculty SG</div>
+    </div>
+  </div>
+</section>
+
+<!-- CURRENTLY -->
+<section>
+  <h2>Currently</h2>
+  <div style="font-size:13px; line-height:2; font-family: 'Courier New', monospace;">
+    <div>→ Temasek Laboratories @ NUS — Fluid Dynamics & Combustion (Summer 2026, NDA)</div>
+    <div>→ Custom CDMA/TDMA SDR with DIY RF front end PCB + 30dBm PA (Summer 2026)</div>
+    <div>→ DIY GNSS receiver targeting COCOM limits, rocket flight planned</div>
+    <div>→ Bumblebee NUS — AUV/ASV electrical systems, Robosub/RobotX</div>
+  </div>
+</section>
+
+<footer>
+  <div>Sai Wai Phyo · Last updated May 2026</div>
+  <div>Built with HTML. No frameworks were harmed.</div>
+</footer>
+
+</body>
+</html>
