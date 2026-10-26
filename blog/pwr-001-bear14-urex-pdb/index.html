@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PWR-001 · BEAR-14: UREx power distribution board · Sai Wai Phyo</title>
+<meta name="description" content="Design, ground testing and first flight of the UREx power distribution board on BEAR-14 (NUS TEH HALIA-1): buck-boost 5 V, switched rails, current sensing and closed-loop battery heating to 33.5 km.">
+<meta property="og:title" content="BEAR-14: UREx power distribution board">
+<meta property="og:type" content="article">
+<meta property="og:image" content="stack-assembled.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<link rel="stylesheet" href="../blog.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false})"></script>
+</head>
+<body>
+
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="../">SAI WAI PHYO / ENGINEERING NOTES</a>
+<nav aria-label="Site">
+<a href="/">Home</a>
+<a href="../">Register</a>
+<a href="#sources">Sources</a>
+</nav>
+</div>
+</header>
+
+<main class="wrap">
+
+<div class="crumbs"><a href="../">Register</a> / Power Electronics / PWR-001</div>
+
+<section class="title-block" aria-label="Title block">
+<div class="head">
+<h1>BEAR-14: the UREx power distribution board</h1>
+<p class="sub">A wide-input 5 V buck–boost PDB with switched payload rails, current sensing and closed-loop battery heating, built to replace a bench harness and flown to 33.5 km on NUS TEH HALIA-1.</p>
+<p class="authors"><b>Sai Wai Phyo</b>, Alvin Tan Yean Liang and Nathan Bong Neng Quan — NUS STAR UREx. Flown with BEAR.</p>
+</div>
+<dl class="tb-cells">
+<div><dt>DOC NO</dt><dd>PWR-001</dd></div>
+<div><dt>REV</dt><dd>A</dd></div>
+<div><dt>DATE</dt><dd>2026-10-26</dd></div>
+<div><dt>STATUS</dt><dd><span class="badge solid">FLOWN</span></dd></div>
+<div><dt>CATEGORY</dt><dd>Power Electronics</dd></div>
+<div><dt>TYPE</dt><dd>Build log</dd></div>
+<div><dt>SERIES</dt><dd>BEAR flights · 2 of 2</dd></div>
+<div><dt>LAUNCH</dt><dd>2026-08-30 00:15Z</dd></div>
+</dl>
+</section>
+
+<div class="provenance" role="note">
+<span class="lbl">SOURCE NOTE</span>
+<p>Written by Claude (Anthropic) from my data: the <a href="https://docs.google.com/presentation/d/1S9HJdyHQ6k4VyLWnDUlSETUxE1U7G97AkWTl4FFBxv4">BEAR-14 NUS TEH HALIA-1 slides</a>, my UREx report, the aprs.fi flight exports, and the KiCad and firmware repositories. Every number in §7 was regenerated from the raw telemetry by the scripts in the <a href="#dl">downloads</a>.</p>
+</div>
+
+<nav class="sheet-index" aria-label="Sheet index">
+<span class="lbl">SHEET INDEX</span>
+<a href="#s1">1 Why</a>
+<a href="#s2">2 Requirements</a>
+<a href="#s3">3 Architecture</a>
+<a href="#s4">4 Hardware</a>
+<a href="#s5">5 Firmware</a>
+<a href="#s6">6 Ground test</a>
+<a href="#s7">7 Flight results</a>
+<a href="#s8">8 Anomalies</a>
+<a href="#s9">9 Next</a>
+<a href="#sources">Sources</a>
+</nav>
+
+<div class="tags">
+<span>#hab</span><span>#buck-boost</span><span>#tps552892</span><span>#ina232</span><span>#load-switch</span><span>#battery-heater</span><span>#esp32</span><span>#kicad</span>
+</div>
+
+<div class="keyfigs" role="list" aria-label="Key figures">
+<div role="listitem"><div class="v">33.5 km</div><div class="k">PEAK ALTITUDE</div></div>
+<div role="listitem"><div class="v">≥15.1 °C</div><div class="k">BATTERY, WHOLE FLIGHT</div></div>
+<div role="listitem"><div class="v">3.2 W</div><div class="k">MEAN SYSTEM DRAW</div></div>
+<div role="listitem"><div class="v">28%</div><div class="k">PACK ENERGY USED</div></div>
+<div role="listitem"><div class="v">0.43 V</div><div class="k">BUS SAG, LAUNCH → LANDING</div></div>
+<div role="listitem"><div class="v">90 min</div><div class="k">PAD HOLD, PAYLOADS OFF</div></div>
+</div>
+
+<article class="prose">
+
+<h2 id="summary"><span class="no">0</span>Summary</h2>
+<p class="lede">The UREx PDB is a four-layer, 89.8 × 59.7 mm board that turns a 2S pack into a regulated 5 V rail through a TPS552892 buck–boost, switches seven payload rails from an I²C expander, measures battery current with an INA232, and keeps the battery warm with a PTC heater on a closed loop. Its own ESP32 owns the power system and hands telemetry to the comms board from <a href="../rf-001-bear13-comms-board/">RF-001</a>.</p>
+<p>It flew for the first time on BEAR-14 on 30 August 2026 and reached 33.5 km. The bus regulated throughout with no resets. The battery never dropped below 15.1 °C, the stack averaged 3.2 W and used 28% of the measured pack energy, and a 90-minute launch hold was absorbed by switching payloads off from a Wi-Fi page. The flight also found two things to fix: the PDB's Wi-Fi blocked GNSS lock on the pad, and the cutter logic, flown as a dry run, re-arms instead of latching.</p>
+
+<!-- ============================================================ 1 -->
+<h2 id="s1"><span class="no">1</span>Why build it</h2>
+<p>Earlier BEAR payloads ran off development boards and point-to-point wiring (<a href="#fig-1">FIG. 1</a>). That's hard to inspect, reports nothing about the power system, and gives no way to switch payloads off during the long pad holds that are normal on launch day. BEAR-13 made the cost concrete: its video payload used two-thirds of the pack in 4.9 h, so a longer hold would have flattened the battery before landing.</p>
+
+<figure class="fig" id="fig-1">
+<a href="legacy-harness.jpg"><img src="legacy-harness.jpg" alt="Bench harness of development boards joined by point-to-point wiring" width="1200" height="1600" loading="lazy" style="max-height: 380px; width: auto"></a>
+<figcaption><span class="lbl">FIG. 1</span> — Previously in BEAR: the bench harness the PDB replaces.</figcaption>
+</figure>
+
+<p>BEAR-14 (<i>NUS TEH HALIA-1</i>) dropped BEAR-13's video and sent SSTV images on 145.670 MHz instead, straight after each APRS frame on the same radio. It also carried a STAR student payload and the new PDB. The camera planned for this flight didn't make it onto the payload.</p>
+
+<div class="tbl" id="tab-1">
+<div class="cap"><span class="lbl">TABLE 1</span> — BEAR-14 at a glance. Times are UTC; Singapore is UTC+8.</div>
+<div class="scroll"><table style="min-width: 480px">
+<tbody>
+<tr><td class="m">Launch</td><td>30 Aug 2026, 00:15 UTC (08:15 local)</td></tr>
+<tr><td class="m">Callsign</td><td class="m">9V1WP-11</td></tr>
+<tr><td class="m">Primary payload</td><td>SSTV on 145.670 MHz, STAR student payload</td></tr>
+<tr><td class="m">Avionics</td><td>Comms board (RF-001) + UREx PDB</td></tr>
+<tr><td class="m">Battery</td><td>2S pack, 5228 mAh measured</td></tr>
+<tr><td class="m">Peak GNSS altitude</td><td class="m">33 504 m</td></tr>
+<tr><td class="m">APRS frames recovered</td><td class="m">93.9% (246/262)</td></tr>
+</tbody>
+</table></div>
+</div>
+
+<!-- ============================================================ 2 -->
+<h2 id="s2"><span class="no">2</span>Requirements</h2>
+<p><a href="#tab-2">TABLE 2</a> is the requirement set from the start of the BEAR-14 cycle, with status from the evidence in <a href="#s6">§6</a> and <a href="#s7">§7</a>.</p>
+
+<div class="tbl" id="tab-2">
+<div class="cap"><span class="lbl">TABLE 2</span> — PDB requirements and verification status.</div>
+<div class="scroll"><table style="min-width: 760px">
+<thead><tr><th>ID</th><th>Requirement</th><th>Implementation</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td class="id">R1</td><td>5 V @ 2 A each to a Raspberry Pi, an SDR and one APRS board (≈6 A peak); allow for a future digital video payload</td><td>TPS552892 buck–boost (WEBENCH design, 5 A); three TPS22997 load switches</td><td><span class="badge plain">PARTIAL</span><br><span style="font-size: 13px">15 W on one channel</span></td></tr>
+<tr><td class="id">R2</td><td>Current sensing and bus-voltage monitoring</td><td>INA232 with 6.8 mΩ shunt on the battery rail</td><td><span class="badge solid">FLOWN</span></td></tr>
+<tr><td class="id">R3</td><td>Enable/disable payloads for power cycling and saving</td><td>TCA6408A I/O expander on every switched rail; Wi-Fi control page</td><td><span class="badge solid">ON PAD</span></td></tr>
+<tr><td class="id">R4</td><td>Battery heating</td><td>PTC heater on a TPS1HB08 high-side switch; DS18B20 feedback</td><td><span class="badge solid">FLOWN</span></td></tr>
+<tr><td class="id">R5</td><td>Accept 5–18 V input</td><td>Buck–boost input range; 16.8 V (4S) design maximum</td><td><span class="badge red">NOT TESTED</span></td></tr>
+</tbody>
+</table></div>
+</div>
+
+<!-- ============================================================ 3 -->
+<h2 id="s3"><span class="no">3</span>Architecture</h2>
+<p><a href="#fig-2">FIG. 2</a> is the BEAR-14 stack. Each board carries an ESP32. The PDB's controller (the <i>head</i>) owns the power system: it samples the INA232 and the battery temperature at 1 Hz, runs the heater loop, drives the rail switches through the I/O expander, and pushes a 13-byte packed telemetry struct over I²C to the comms board (the <i>tail</i>) at <code>0x42</code>. The tail owns the radio and navigation sensors and folds the power telemetry into alternate APRS frames. Splitting it this way means a radio-firmware fault can't leave the rails or the heater in an undefined state, and the PDB can be reused under a different telemetry system.</p>
+
+<figure class="fig" id="fig-2">
+<div class="frame"><a href="architecture.svg"><img src="architecture.svg" alt="Block diagram: battery, fuse and diode, INA232, buck-boost, LDO, high-side and pyro switches and load switches on the PDB; ESP32 tail, SA818 radio, filters, GNSS, barometer and sensors on the comms board; I2C link between the two ESP32s" loading="lazy"></a></div>
+<figcaption><span class="lbl">FIG. 2</span> — BEAR-14 avionics. Thick red arrows carry power, thin arrows signals; dashed boxes are external loads. The head ESP32 runs from its own LDO on the battery rail, so the controller stays up if the buck–boost fails. <span class="hint">Tap the diagram to open it full size.</span></figcaption>
+</figure>
+
+<!-- ============================================================ 4 -->
+<h2 id="s4"><span class="no">4</span>Hardware</h2>
+
+<h3><span class="no">4.1</span>Power tree</h3>
+<p>Battery input comes in on an XT30, up to 16.8 V, through a fuse and a series Schottky for reverse-polarity protection, then the 6.8 mΩ shunt, and splits four ways:</p>
+<ol>
+<li>a TPS552892 four-switch buck–boost <span class="cite">[<a href="#ref-4">4</a>]</span> making 5 V, designed in TI WEBENCH for up to 5 A, with a 4.7 µH (13.6 A sat) XAL7070 inductor and polymer bulk capacitance (330 µF, 16 mΩ ESR), feeding three TPS22997 payload load switches <span class="cite">[<a href="#ref-6">6</a>]</span>;</li>
+<li>two TPS1HB08-Q1 smart high-side switches <span class="cite">[<a href="#ref-7">7</a>]</span> on the battery rail for inductive loads (VTx, motors, the battery heater), with current limit and diagnostics built in;</li>
+<li>two RSS070N05 N-channel low-side "pyro" channels for resistive loads such as a hot-wire cutter;</li>
+<li>a wide-input 3.3 V LDO running the ESP32 straight off the battery, bypassing the switcher, so the controller can still command and report if the converter dies.</li>
+</ol>
+<p>Layer 2 is a split power plane carrying the battery, 5 V and 3.3 V nets (<a href="#fig-3">FIG. 3e</a>, <a href="#fig-4">FIG. 4</a>). The high-current loop stays on the top layer between shunt, converter and output switches.</p>
+
+<figure class="fig" id="fig-3">
+<div class="fig-grid" style="--min: 300px; --h: 260px">
+<figure class="sub"><a href="pdb-render-front.jpg"><img src="pdb-render-front.jpg" alt="3D render of the PDB top side" width="1600" height="897" loading="lazy"></a><figcaption><b>(a)</b> Render, top.</figcaption></figure>
+<figure class="sub"><a href="pdb-render-back.jpg"><img src="pdb-render-back.jpg" alt="3D render of the PDB bottom side" width="1600" height="897" loading="lazy"></a><figcaption><b>(b)</b> Render, bottom.</figcaption></figure>
+</div>
+<div class="fig-grid" style="--min: 180px; --h: 280px; margin-top: 14px">
+<figure class="sub"><a href="pdb-top.jpg"><img src="pdb-top.jpg" alt="Assembled PDB, top side" width="960" height="1280" loading="lazy"></a><figcaption><b>(c)</b> Assembled, top.</figcaption></figure>
+<figure class="sub"><a href="pdb-bottom.jpg"><img src="pdb-bottom.jpg" alt="Assembled PDB, bottom side" width="960" height="1280" loading="lazy"></a><figcaption><b>(d)</b> Assembled, bottom.</figcaption></figure>
+<figure class="sub"><a href="pdb-powerplane.jpg"><img src="pdb-powerplane.jpg" alt="Layer 2 split power plane of the PDB in KiCad" width="1195" height="932" loading="lazy"></a><figcaption><b>(e)</b> Layer 2 split power plane.</figcaption></figure>
+</div>
+<figcaption><span class="lbl">FIG. 3</span> — UREx power distribution board: 89.8 × 59.7 mm, four layers, 128 footprints, 370 vias.</figcaption>
+</figure>
+
+<figure class="fig" id="fig-4">
+<div class="narrow"><a href="pdb-powerpath.jpg"><img src="pdb-powerpath.jpg" alt="Annotated PDB layout showing fuse, shunt, converter, load switches, high-side switches, pyro MOSFETs and LDO" width="1193" height="928" loading="lazy"></a></div>
+<figcaption><span class="lbl">FIG. 4</span> — Annotated power path: fuse, shunt, TPS552892, the three TPS22997 5 V switches, the TPS1HB08 high-side switches, the low-side pyro MOSFETs and the LM1117-class LDO.</figcaption>
+</figure>
+
+<h3><span class="no">4.2</span>Current sensing</h3>
+<p>The shunt is sized so the INA232's full-scale input <span class="cite">[<a href="#ref-5">5</a>]</span> (±81.92 mV at ADCRANGE = 0) lands on the combined current limit of all load switches, \(I_{\max} = 12\,\mathrm{A}\):</p>
+<div class="eq" id="eq-1">\[ R_\mathrm{sh} \le \frac{V_\mathrm{sense,FS}}{I_{\max}} = \frac{81.92\,\mathrm{mV}}{12\,\mathrm{A}} = 6.83\,\mathrm{m\Omega},\qquad P_\mathrm{sh} = I_{\max}^2 R_\mathrm{sh} = 0.98\,\mathrm{W} \tag{1} \]</div>
+<div class="note-row">
+<p>A 6.8 mΩ WSHM2818 metal-strip resistor was fitted. With the 2.5 µV shunt LSB that's 0.37 mA resolution. The firmware averages 128 conversions of 8.2 ms, so each reported reading spans about 1 s.<sup class="sn-ref"><a href="#sn-1" id="snr-1">1</a></sup></p>
+<aside class="sn" id="sn-1"><span class="n">1</span>The INA library assumes the INA230 register map. The shunt LSB matches, but the bus-voltage LSB is 1.25 mV on the INA230 and 1.6 mV on the INA232, so the firmware multiplies by 1.28. It works, but correctness now hangs on a constant in application code, and some comments still say INA228. Clean both up before reuse.</aside>
+</div>
+
+<h3><span class="no">4.3</span>Load switching and the pad control page</h3>
+<p>All seven controllable rails hang off a TCA6408A I²C I/O expander: three 5 V buses, the heater, the VTx and two general-purpose channels. The firmware keeps a shadow copy of the output register so automatic heater control and manual commands can flip single bits without stepping on each other. In the nominal flight state (<code>0x38</code>) the three 5 V buses are on and the heater and VTx are off.</p>
+<p>On the pad, the head ESP32 runs a Wi-Fi access point with a control page (<a href="#fig-5">FIG. 5a</a>) that toggles each rail and shows live bus status. One <i>Enter Flight State</i> action locks the rail configuration and turns the radio off for the rest of the flight. This turned out to matter: BEAR-14 had to hold for 90 minutes, and we switched the payloads off from this page to save the battery, which verified R3 under real conditions.</p>
+
+<figure class="fig" id="fig-5">
+<div class="fig-grid" style="--h: 340px; grid-template-columns: minmax(0, 0.55fr) minmax(0, 1.45fr)">
+<figure class="sub"><a href="webapp.jpg"><img src="webapp.jpg" alt="Phone screenshot of the rail control web page" width="649" height="1280" loading="lazy"></a><figcaption><b>(a)</b> Rail control page.</figcaption></figure>
+<figure class="sub"><a href="pdb-thermal.jpg"><img src="pdb-thermal.jpg" alt="Thermal camera image of the PDB under load, hotspot about 51 degrees C" width="1280" height="960" loading="lazy"></a><figcaption><b>(b)</b> Thermal image, 15 W constant-power load at 7.2 V input.</figcaption></figure>
+</div>
+<figcaption><span class="lbl">FIG. 5</span> — Pad control interface and load test.</figcaption>
+</figure>
+
+<h3><span class="no">4.4</span>Battery pack and heater</h3>
+<div class="note-row">
+<p>The flight pack is wrapped in polyimide tape with a DS18B20 one-wire sensor and a 60 °C self-limiting PTC heater bonded to the cells (<a href="#fig-6">FIG. 6</a>). The controller is bang-bang with hysteresis: heater on at \(T_\mathrm{bat} \le 15\,^\circ\mathrm{C}\), off at \(T_\mathrm{bat} \ge 20\,^\circ\mathrm{C}\), and forced off if the sensor returns the DS18B20 disconnected value (−127 °C), so a sensor fault can't latch the heater on.<sup class="sn-ref"><a href="#sn-2" id="snr-2">2</a></sup></p>
+<aside class="sn" id="sn-2"><span class="n">2</span>The dedicated battery one-wire bus read unreliably during integration, so for BEAR-14 the sensor moved to the second (external) one-wire port.</aside>
+</div>
+
+<figure class="fig" id="fig-6">
+<div class="fig-grid" style="--h: 320px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr)">
+<figure class="sub"><a href="batt-pack-sensor.jpg"><img src="batt-pack-sensor.jpg" alt="Battery pack with DS18B20 sensor taped to the cells" width="900" height="1600" loading="lazy"></a><figcaption><b>(a)</b> DS18B20 placement.</figcaption></figure>
+<figure class="sub"><a href="batt-pack-heater.jpg"><img src="batt-pack-heater.jpg" alt="Battery pack with PTC heater bonded to the cells" width="900" height="1600" loading="lazy"></a><figcaption><b>(b)</b> PTC heater.</figcaption></figure>
+<figure class="sub"><a href="batt-conditioning.jpg"><img src="batt-conditioning.jpg" alt="Battery analyser screen after the final conditioning discharge" width="1600" height="1600" loading="lazy"></a><figcaption><b>(c)</b> Final conditioning cycle: 5228 mAh, 39.45 Wh.</figcaption></figure>
+</div>
+<figcaption><span class="lbl">FIG. 6</span> — Flight battery pack construction and pre-flight conditioning.</figcaption>
+</figure>
+
+<!-- ============================================================ 5 -->
+<h2 id="s5"><span class="no">5</span>Firmware: the inter-board link</h2>
+<div class="note-row">
+<p>The PDB writes a packed struct {\(V_\mathrm{bus}\), \(I\), \(T_\mathrm{bat}\), heater state} to the comms board once a second, and the comms board receives it in an interrupt callback <span class="cite">[<a href="#ref-3">3</a>]</span>. On BEAR-14 the comms board put battery temperature in the field it reserved for a thermocouple on BEAR-13. The struct definitions on the two boards have to match byte for byte, so any change to the telemetry fields must ship to both boards together. That argues for a shared header over two hand-maintained copies.<sup class="sn-ref"><a href="#sn-3" id="snr-3">3</a></sup></p>
+<aside class="sn" id="sn-3"><span class="n">3</span>The link originally ran the other way, with the comms board as I²C master. It was reversed during integration because the PDB's second I²C peripheral was already committed to the INA232 as master.</aside>
+</div>
+
+<!-- ============================================================ 6 -->
+<h2 id="s6"><span class="no">6</span>Ground testing</h2>
+
+<h3><span class="no">6.1</span>Load test</h3>
+<p>The PDB was loaded at 15 W constant power (3 A at 5 V) from a 7.2 V supply through one TPS22997 channel, roughly a Raspberry Pi 5 under load. The thermal image (<a href="#fig-5">FIG. 5b</a>) shows a hotspot of about 51 °C against a 22 °C background, with a second marked point at 31 °C. The board then ran a Pi 5 through one load switch without brown-out. So R1 is only partly verified. The full 5 A converter rating, all three channels loaded at once, and the 5 V and 16.8 V ends of the input range were not tested, and converter efficiency wasn't measured.</p>
+
+<h3><span class="no">6.2</span>Battery conditioning</h3>
+<p>Before flight the pack went through three cycles of: discharge to cut-off, 30 min rest, full recharge, 30 min rest. The final discharge delivered 5228 mAh and 39.45 Wh (<a href="#fig-6">FIG. 6c</a>), an average of 7.55 V, consistent with a healthy 2S pack. That's the energy budget used in <a href="#s7-1">§7.1</a>.</p>
+
+<h3><span class="no">6.3</span>Integration</h3>
+<figure class="fig" id="fig-7">
+<div class="fig-grid" style="--min: 150px; --h: 300px; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 0.8fr) minmax(0, 0.8fr)">
+<figure class="sub"><a href="stack-bench.jpg"><img src="stack-bench.jpg" alt="Avionics stack on the bench during bring-up" width="900" height="1600" loading="lazy"></a><figcaption><b>(a)</b> Bench bring-up.</figcaption></figure>
+<figure class="sub"><a href="stack-assembled.jpg"><img src="stack-assembled.jpg" alt="Assembled two-board avionics stack" width="1600" height="1600" loading="lazy"></a><figcaption><b>(b)</b> Assembled stack.</figcaption></figure>
+<figure class="sub"><a href="enclosure-front.jpg"><img src="enclosure-front.jpg" alt="Flight enclosure, front" width="640" height="872" loading="lazy"></a><figcaption><b>(c)</b> Enclosure.</figcaption></figure>
+<figure class="sub"><a href="enclosure-side.jpg"><img src="enclosure-side.jpg" alt="Flight enclosure, side" width="632" height="911" loading="lazy"></a><figcaption><b>(d)</b> Side view.</figcaption></figure>
+</div>
+<figcaption><span class="lbl">FIG. 7</span> — What flew: the BEAR-14 stack in integration and in its flight enclosure.</figcaption>
+</figure>
+
+<!-- ============================================================ 7 -->
+<h2 id="s7"><span class="no">7</span>Flight results</h2>
+<p>The data are aprs.fi exports of every frame the APRS network received from 9V1WP-11, with one-second timestamps <span class="cite">[<a href="#ref-3">3</a>]</span>. BEAR-13 is shown alongside for comparison; its trajectory and method are in <a href="../rf-001-bear13-comms-board/#s6">RF-001 §6</a>. BEAR-14 climbed at a steady 3.71 m/s to a natural burst at 33.5 km, and its last fix was 28.9 km from the launch site, over the southern Singapore Strait.</p>
+
+<h3 id="s7-1"><span class="no">7.1</span>Power</h3>
+<p><a href="#fig-8">FIG. 8</a> shows bus voltage, current and altitude. Energy and charge in <a href="#tab-3">TABLE 3</a> are trapezoidal integrals of \(V \cdot I\) and \(I\) over every power frame, including the pre-launch hold. Current is sampled only about every 70 s, so short events such as transmit bursts are undersampled. Treat the integrals as estimates of average consumption.</p>
+
+<figure class="fig" id="fig-8">
+<div class="narrow" style="max-width: 860px"><a href="power-both.svg"><img src="power-both.svg" alt="Bus voltage, current and altitude against time for both flights" loading="lazy"></a></div>
+<figcaption><span class="lbl">FIG. 8</span> — Power telemetry, BEAR-13 (top) and BEAR-14 (bottom). Current spikes after launch are heater activations.</figcaption>
+</figure>
+
+<div class="tbl" id="tab-3">
+<div class="cap"><span class="lbl">TABLE 3</span> — Power figures from telemetry.</div>
+<div class="scroll"><table style="min-width: 600px">
+<thead><tr><th>Parameter</th><th class="r">BEAR-14 (2S, PDB)</th><th class="r">BEAR-13 (3S, for reference)</th></tr></thead>
+<tbody>
+<tr><td>Bus voltage, launch → last frame</td><td class="m r">8.05 → 7.62 V</td><td class="m r">12.25 → 11.27 V</td></tr>
+<tr><td>Per-cell voltage at last frame</td><td class="m r">3.81 V</td><td class="m r">3.76 V</td></tr>
+<tr><td>Current, median / mean / max</td><td class="m r">0.38 / 0.42 / 1.73 A</td><td class="m r">0.59 / 0.72 / 1.84 A</td></tr>
+<tr><td>Logged span</td><td class="m r">3.5 h</td><td class="m r">4.9 h</td></tr>
+<tr><td>Charge drawn</td><td class="m r">1.44 Ah</td><td class="m r">3.41 Ah</td></tr>
+<tr><td>Energy drawn</td><td class="m r">11.3 Wh</td><td class="m r">40.1 Wh</td></tr>
+<tr><td>Mean power</td><td class="m r">3.2 W</td><td class="m r">8.1 W</td></tr>
+<tr><td>Fraction of pack capacity used</td><td class="m r">28% of 5.23 Ah</td><td class="m r">66% of 5.2 Ah</td></tr>
+</tbody>
+</table></div>
+</div>
+
+<p>Without a video payload the stack averaged 3.2 W and used under 30% of the conditioned pack. The bus sagged only 0.43 V over the flight, the buck–boost regulated throughout, and the continuous frame counter shows no brown-out or reset. Splitting the current samples at 0.8 A gives 1.23 A with the heater on and 0.33 A with it off. The heater therefore draws about 0.90 A, or 7.1 W at 7.9 V. It was on in 9.8% of power frames, an average heating power of ≈0.7 W.</p>
+
+<h3 id="s7-2"><span class="no">7.2</span>Thermal</h3>
+
+<figure class="fig" id="fig-9">
+<div class="fig-grid" style="--min: 260px; --h: auto; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); align-items: start">
+<figure class="sub"><a href="thermal-f14.svg"><img class="plot" src="thermal-f14.svg" alt="BEAR-14 battery and bay temperatures with heater activity against time" loading="lazy" style="height: auto"></a><figcaption><b>(a)</b> Temperatures and heater activity.</figcaption></figure>
+<figure class="sub"><a href="temp-vs-alt.svg"><img class="plot" src="temp-vs-alt.svg" alt="Bay temperature against altitude on ascent for both flights" loading="lazy" style="height: auto"></a><figcaption><b>(b)</b> Bay temperature against altitude, both flights.</figcaption></figure>
+</div>
+<figcaption><span class="lbl">FIG. 9</span> — Thermal environment inside the payload.</figcaption>
+</figure>
+
+<p>The battery fell from 33 °C at launch into the 15–20 °C control band at about 9 km and stayed there for the rest of the ascent, with a minimum of 15.1 °C (<a href="#fig-9">FIG. 9a</a>). Three groups of heater activations near 50, 70 and 105 min line up with recoveries in battery temperature: the loop closed as designed. The avionics bay, read from the MS5611 die, bottomed at 11.8 °C at 16.2 km near the tropical tropopause, then recovered to 34 °C near burst as solar heating rose in the thin stratosphere.</p>
+<p>At 18.7 km the BEAR-13 bay was at −1.6 °C, about 18 K colder than BEAR-14's 16.0 °C (<a href="#fig-9">FIG. 9b</a>). Part of that difference is enclosure design and launch time (06:51 against 08:15 local), so not all of it goes to the heater. But the battery stayed above the bottom of the control band through the coldest part of the flight, which is what R4 asks for, so R4 is verified.</p>
+
+<h3 id="s7-3"><span class="no">7.3</span>Telemetry link and SSTV</h3>
+<p>The APRS network recovered 93.9% of BEAR-14's frames (<a href="#fig-10">FIG. 10</a>). The largest outage was eight frames (about 4.5 min) between 1.2 and 3.0 km, just after launch. The counter ran on without a reset, so the payload kept transmitting and the frames were lost on the receive side, consistent with poor low-altitude iGate coverage near the launch site. One more two-frame gap occurred at 23.7 km. The radio ran the module's 0.5 W setting, and this result suggests little to gain from high power given its current cost.</p>
+
+<figure class="fig" id="fig-10">
+<div class="narrow" style="max-width: 820px"><a href="packets.svg"><img src="packets.svg" alt="Lost frames before each received frame for both flights" loading="lazy"></a></div>
+<figcaption><span class="lbl">FIG. 10</span> — Lost frames preceding each received frame, from gaps in the on-board counter.</figcaption>
+</figure>
+
+<p>The SSTV frame in <a href="#fig-11">FIG. 11</a> was sent at 02:40 UTC from 32 874 m, three minutes before burst, with the telemetry overlaid on board.</p>
+
+<figure class="fig" id="fig-11">
+<div class="xnarrow"><a href="sstv-bear14.jpg"><img src="sstv-bear14.jpg" alt="SSTV image of the Earth's horizon from 32.9 km with telemetry overlay" width="320" height="240" loading="lazy" style="width: 100%"></a></div>
+<figcaption><span class="lbl">FIG. 11</span> — SSTV from 32.9 km, with on-board time, position, altitude, speed and pressure overlaid.</figcaption>
+</figure>
+
+<!-- ============================================================ 8 -->
+<h2 id="s8"><span class="no">8</span>Anomalies</h2>
+<div class="tbl" id="tab-4">
+<div class="cap"><span class="lbl">TABLE 4</span> — BEAR-14 anomalies, from the flight data and code review. Numbering follows the UREx report.</div>
+<div class="scroll"><table style="min-width: 820px">
+<thead><tr><th>#</th><th style="width: 22%">Anomaly</th><th>Evidence / cause</th><th style="width: 28%">Corrective action</th></tr></thead>
+<tbody>
+<tr><td class="id">A1</td><td>PDB Wi-Fi prevents GNSS lock on the pad</td><td>Seen at the ESP32 default of 20 dBm despite the BFCN-1575+. Likely front-end compression from a strong 2.4 GHz signal on an antenna a few centimetres away, which the filter can't reject enough of, rather than in-band emission.</td><td>Cut Tx power (<code>WiFi.setTxPower</code>); move pad control to BLE; separate the antennas; enter flight state before GNSS acquisition.</td></tr>
+<tr><td class="id" style="color: var(--accent)">A2</td><td><b>Cutter re-arms instead of latching</b></td><td><code>C:C</code> in all 11 power frames above 30.2 km. The altitude check re-asserts the cut on every pass while above the set point, and the blocking transmitter resets the 15 s cut timer. A live cutter would have fired repeatedly.</td><td>One-shot latched cut with a "fired" flag; add a mission timer and barometric backup; keep the Tx-inhibit guard.</td></tr>
+<tr><td class="id">A3</td><td>Sensors starved during SSTV</td><td>Sensors and the cutter aren't serviced during the blocking 36 s SSTV transmission.</td><td>Generate SSTV audio by DMA (I2S/DAC) or move to FreeRTOS tasks.</td></tr>
+<tr><td class="id">A7</td><td>PDB errata</td><td>Battery one-wire port unreliable; INA228/230/232 inconsistency in code; a single <code>0x38</code> flight mode.</td><td>Next board revision; shared telemetry header; explicit mode state machine.</td></tr>
+</tbody>
+</table></div>
+</div>
+<p>A2 is the most safety-relevant. A flight-termination system is part of the conditions under which these flights are cleared with aviation authorities. A cutter that cycles at the radio's duty cycle could, with the output live, pull repeated pulses from the pyro channel and inhibit telemetry while doing it. We only saw it because BEAR-14 deliberately flew the cutter as a dry run, with the output disabled and the flag in telemetry. That was the right call, and it should be repeated after the fix and before the output is re-enabled.</p>
+
+<!-- ============================================================ 9 -->
+<h2 id="s9"><span class="no">9</span>What's next</h2>
+<p>On its first flight the PDB regulated the payload bus, reported battery voltage and current throughout, held the battery at or above 15 °C through the tropopause, let us switch payloads off during a 90-minute pad hold, and used under 30% of the measured pack energy. In priority order for the next iteration:</p>
+<ol>
+<li>fix the cutter logic (A2) and repeat the dry run before enabling the output;</li>
+<li>remove the Wi-Fi/GNSS conflict (A1), preferably by moving pad control to Bluetooth LE;</li>
+<li>move the comms firmware to a task-based RTOS with non-blocking SSTV (A3);</li>
+<li>finish characterising the PDB: efficiency over the 5–16.8 V input range, three channels at full load, and the TPS1HB08 current-limit behaviour;</li>
+<li>bring up the spare CAN interface on both boards, so new payload boards can join the stack without point-to-point wiring.</li>
+</ol>
+
+<h3><span class="no">—</span>Acknowledgements</h3>
+<p>Thanks to the NUS Satellite Technology and Research Centre for programme support under UREx; BEAR (9V1FH, 9V1LW, 9V1CV, 9V1YP) for launch, rigging, ground support and regulatory work; Bumblebee Autonomous Systems NUS; and RSAF 203 Squadron, CAAS and IMDA for flight and spectrum approvals.</p>
+
+<!-- ============================================================ sources -->
+<h2 id="sources"><span class="no">S</span>Sources and originals</h2>
+<div class="tbl" id="dl">
+<div class="scroll"><table style="min-width: 560px">
+<thead><tr><th>Source</th><th>Format</th><th>Note</th></tr></thead>
+<tbody>
+<tr><td class="m"><a href="https://docs.google.com/presentation/d/1S9HJdyHQ6k4VyLWnDUlSETUxE1U7G97AkWTl4FFBxv4">BEAR-14 NUS TEH HALIA-1</a></td><td class="m">Google Slides</td><td>The original BEAR-14 deck</td></tr>
+<tr><td class="m"><a href="../rf-001-bear13-comms-board/star-avionics-stack-report.pdf">star-avionics-stack-report.pdf</a></td><td class="m">PDF, 26 pp</td><td>UREx report covering both flights</td></tr>
+<tr><td class="m"><a href="../rf-001-bear13-comms-board/star-avionics-stack-report-latex.zip">star-avionics-stack-report-latex.zip</a></td><td class="m">LaTeX + Python</td><td>Report source and the scripts that regenerate every number here</td></tr>
+<tr><td class="m"><a href="https://github.com/RandomAerospace/power_stuff">power_stuff</a></td><td class="m">KiCad</td><td>PDB schematic, layout and BOM</td></tr>
+<tr><td class="m"><a href="https://github.com/RandomAerospace/BEAR13_FIRMWARE">BEAR13_FIRMWARE</a></td><td class="m">Arduino + CSV</td><td>Firmware for both boards and raw aprs.fi exports</td></tr>
+</tbody>
+</table></div>
+</div>
+
+<h3 id="refs"><span class="no">R</span>References</h3>
+<ol class="refs">
+<li id="ref-1"><span class="k">[1]</span><span>S. W. Phyo, A. Tan, N. Bong, <i>power_stuff: UREx power distribution board</i>, GitHub, 2026. <a href="https://github.com/RandomAerospace/power_stuff">github.com/RandomAerospace/power_stuff</a></span></li>
+<li id="ref-2"><span class="k">[2]</span><span>S. W. Phyo, <i>COMMS-BOARD: APRS + GNSS board with hot-wire and FPV camera control</i>, GitHub, 2026. <a href="https://github.com/RandomAerospace/COMMS-BOARD">github.com/RandomAerospace/COMMS-BOARD</a></span></li>
+<li id="ref-3"><span class="k">[3]</span><span>S. W. Phyo, <i>BEAR13_FIRMWARE: HAB telemetry and power firmware, with flight data</i>, GitHub, 2026. <a href="https://github.com/RandomAerospace/BEAR13_FIRMWARE">github.com/RandomAerospace/BEAR13_FIRMWARE</a></span></li>
+<li id="ref-4"><span class="k">[4]</span><span>Texas Instruments, <i>TPS552892 Wide-Input Buck-Boost Converter</i>, datasheet.</span></li>
+<li id="ref-5"><span class="k">[5]</span><span>Texas Instruments, <i>INA232 High- or Low-Side, Bidirectional Current and Power Monitor</i>, datasheet.</span></li>
+<li id="ref-6"><span class="k">[6]</span><span>Texas Instruments, <i>TPS22997 Single-Channel Load Switch</i>, datasheet.</span></li>
+<li id="ref-7"><span class="k">[7]</span><span>Texas Instruments, <i>TPS1HB08-Q1 Automotive Single-Channel Smart High-Side Switch</i>, datasheet.</span></li>
+</ol>
+
+<!-- ============================================================ appendix -->
+<h2 id="appA"><span class="no">A</span>Appendix: schematic sheets</h2>
+<p>Full schematics are in the repository <span class="cite">[<a href="#ref-1">1</a>]</span>. Sheets are vector; tap one to open it full size.</p>
+<figure class="fig" id="fig-12">
+<div class="frame"><a href="sch-pdb-buckboost.svg"><img src="sch-pdb-buckboost.svg" alt="Schematic sheet: TPS552892 buck-boost converter" loading="lazy"></a></div>
+<figcaption><span class="lbl">FIG. 12</span> — TPS552892 buck–boost converter.</figcaption>
+</figure>
+<figure class="fig" id="fig-13">
+<div class="frame"><a href="sch-pdb-switches.svg"><img src="sch-pdb-switches.svg" alt="Schematic sheet: TPS1HB08 high-side switches and TPS22997 load switches" loading="lazy"></a></div>
+<figcaption><span class="lbl">FIG. 13</span> — TPS1HB08 high-side switches and TPS22997 5 V load switches.</figcaption>
+</figure>
+
+<h2 id="rev"><span class="no">Δ</span>Revisions</h2>
+<div class="tbl">
+<div class="scroll"><table style="min-width: 420px">
+<thead><tr><th style="width: 60px">Rev</th><th style="width: 130px">Date</th><th>Change</th></tr></thead>
+<tbody>
+<tr><td class="id">A</td><td class="m">2026-10-26</td><td>First issue, from the BEAR-14 deck and the October 2026 UREx report.</td></tr>
+</tbody>
+</table></div>
+</div>
+
+</article>
+
+<nav class="series" aria-label="Series: BEAR flights">
+<a href="../rf-001-bear13-comms-board/"><div class="k">← PREVIOUS IN SERIES</div><div class="t">RF-001 · BEAR-13: comms board and video downlink</div></a>
+<span><div class="k">NEXT IN SERIES →</div><div class="t">—</div></span>
+</nav>
+
+</main>
+
+<footer class="site-foot">
+<div class="wrap">
+<span>© 2026 Sai Wai Phyo · 9V1WP</span>
+<span><a href="/">Home</a> · <a href="https://github.com/RandomAerospace/saiwaiphyo.github.io">Source</a></span>
+</div>
+</footer>
+
+</body>
+</html>

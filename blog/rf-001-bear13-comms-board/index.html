@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RF-001 · BEAR-13: comms board and a 1.28 GHz video downlink · Sai Wai Phyo</title>
+<meta name="description" content="The communications board and live analogue video downlink flown on BEAR-13 (Project Strato TV), and a link budget that explains why the picture died at 46 km.">
+<meta property="og:title" content="BEAR-13: comms board and a 1.28 GHz video downlink">
+<meta property="og:type" content="article">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<link rel="stylesheet" href="../blog.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false})"></script>
+</head>
+<body>
+
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="../">SAI WAI PHYO / ENGINEERING NOTES</a>
+<nav aria-label="Site">
+<a href="/">Home</a>
+<a href="../">Register</a>
+<a href="#sources">Sources</a>
+</nav>
+</div>
+</header>
+
+<main class="wrap">
+
+<div class="crumbs"><a href="../">Register</a> / RF &amp; Avionics / RF-001</div>
+
+<section class="title-block" aria-label="Title block">
+<div class="head">
+<h1>BEAR-13: comms board and a 1.28 GHz live video downlink</h1>
+<p class="sub">Project Strato TV flew Southeast Asia's first live analogue video from a weather balloon. This is the board that ran it, and the link budget that explains why the picture died at 46 km.</p>
+<p class="authors"><b>Sai Wai Phyo</b> — flight hardware &amp; firmware, RF architecture · Nathan Bong Neng Quan — tracking antenna rotator · Alvin Tan Yean Liang — battery management. BEAR: Fu Hang 9V1FH (rigging), Liwei 9V1LW and Choong 9V1CV (payload and ground support), Chew 9V1YP (regulations and clearance).</p>
+</div>
+<dl class="tb-cells">
+<div><dt>DOC NO</dt><dd>RF-001</dd></div>
+<div><dt>REV</dt><dd>A</dd></div>
+<div><dt>DATE</dt><dd>2026-10-26</dd></div>
+<div><dt>STATUS</dt><dd><span class="badge solid">FLOWN</span></dd></div>
+<div><dt>CATEGORY</dt><dd>RF &amp; Avionics</dd></div>
+<div><dt>TYPE</dt><dd>Test report</dd></div>
+<div><dt>SERIES</dt><dd>BEAR flights · 1 of 2</dd></div>
+<div><dt>LAUNCH</dt><dd>2026-03-28 22:51Z</dd></div>
+</dl>
+</section>
+
+<div class="provenance" role="note">
+<span class="lbl">SOURCE NOTE</span>
+<p>Written by Claude (Anthropic) from my data: the <a href="https://docs.google.com/presentation/d/1dqGqkR1l4U1Nx-cwSBNaxGmJI2lsjK9NqRd7B00oZQ8">Project Strato TV slides</a>, my UREx report, the aprs.fi flight exports, and the KiCad and firmware repositories. Every number in §6–7 was regenerated from the raw telemetry by the scripts in the <a href="#dl">downloads</a>.</p>
+</div>
+
+<nav class="sheet-index" aria-label="Sheet index">
+<span class="lbl">SHEET INDEX</span>
+<a href="#s1">1 Mission</a>
+<a href="#s2">2 Payload</a>
+<a href="#s3">3 Comms board</a>
+<a href="#s4">4 Firmware</a>
+<a href="#s5">5 VTx bench test</a>
+<a href="#s6">6 Flight results</a>
+<a href="#s7">7 Video downlink</a>
+<a href="#s8">8 Anomalies</a>
+<a href="#s9">9 Conclusions</a>
+<a href="#sources">Sources</a>
+</nav>
+
+<div class="tags">
+<span>#hab</span><span>#aprs</span><span>#fpv-video</span><span>#1280mhz</span><span>#cpwg</span><span>#link-budget</span><span>#esp32</span><span>#kicad</span>
+</div>
+
+<div class="keyfigs" role="list" aria-label="Key figures">
+<div role="listitem"><div class="v">31.1 km</div><div class="k">PEAK GNSS ALTITUDE</div></div>
+<div role="listitem"><div class="v">96.9%</div><div class="k">APRS FRAMES RECOVERED</div></div>
+<div role="listitem"><div class="v">48–50 Ω</div><div class="k">CPWG, CHECKED BY HAND</div></div>
+<div role="listitem"><div class="v">≈46 km</div><div class="k">SLANT RANGE AT VIDEO LOSS</div></div>
+<div role="listitem"><div class="v">8.9 dB</div><div class="k">PREDICTED CNR THERE</div></div>
+<div role="listitem"><div class="v">11.6 dB</div><div class="k">PRE-FLIGHT FSPL ERROR</div></div>
+</div>
+
+<article class="prose">
+
+<h2 id="summary"><span class="no">0</span>Summary</h2>
+<p class="lede">BEAR-13 (<i>Project Strato TV</i>) carried a 1.5 W analogue video transmitter at 1280 MHz alongside my communications board: a four-layer ESP32 board with a 144.39 MHz APRS transmitter, u-blox M10 GNSS, an MS5611 barometer and controlled-impedance RF routing. It flew on 29 March 2026 (local), reached 31.1 km, and the APRS network recovered 96.9% of its frames.</p>
+<p>The GNSS kept lock throughout with a 1.5 W, 1.28 GHz transmitter a few centimetres away, so the RF coexistence design held. The video degraded at about 39 km slant range and died at about 46 km. A corrected link budget puts the carrier-to-noise ratio through the FM threshold at exactly that range. The pre-flight estimate had the free-space loss 11.6 dB too optimistic and treated a 20 MHz FM signal like a narrowband carrier. Nothing beyond link margin is needed to explain the loss.</p>
+
+<!-- ============================================================ 1 -->
+<h2 id="s1"><span class="no">1</span>Mission</h2>
+
+<h3><span class="no">1.1</span>Concept of operations</h3>
+<div class="note-row">
+<p>The payload sends APRS position and housekeeping telemetry on 144.390 MHz every 30 s, relayed by the terrestrial digipeater and iGate network so tracking extends well beyond line of sight <span class="cite">[<a href="#ref-3">3</a>]</span>. In parallel the VTx transmits live video at 1280 MHz, switching between a horizon and a zenith camera on every APRS cycle, to a tracking antenna on the ground. Termination is set at 30 km, and the zenith camera is selected for five minutes before the cut.<sup class="sn-ref"><a href="#sn-1" id="snr-1">1</a></sup></p>
+<aside class="sn" id="sn-1"><span class="n">1</span>Cleared with the RSAF (203 Squadron), CAAS and IMDA. IMDA approval was needed for the wideband 1.28 GHz emission.</aside>
+</div>
+
+<h3><span class="no">1.2</span>Why 1280 MHz, and why analogue</h3>
+<div class="note-row">
+<p>Analogue FPV transmitters are cheap (about $60) because drones use them: an NTSC/PAL video signal frequency-modulates a carrier. The catch is bandwidth, about 20 MHz. That doesn't fit anywhere in the VHF or UHF amateur bands, but the 1240–1300 MHz band has 40 MHz of room, subject to IMDA approval. The alternative is digital TV from an SDR in about 2 MHz, which is how the Horus DATV flights do it <span class="cite">[<a href="#ref-8">8</a>]</span>. That costs far more in hardware, so we went through the regulators instead.<sup class="sn-ref"><a href="#sn-2" id="snr-2">2</a></sup></p>
+<aside class="sn" id="sn-2"><span class="n">2</span>Horus used a LimeSDR on a Raspberry Pi to send 720 × 404 video at 445 MHz and 800 mW: DVB-S2, QPSK, FEC ½, with the transport stream built in GNU Radio.</aside>
+</div>
+
+<div class="tbl" id="tab-1">
+<div class="cap"><span class="lbl">TABLE 1</span> — BEAR-13 at a glance. Times are UTC; Singapore is UTC+8.</div>
+<div class="scroll"><table style="min-width: 480px">
+<tbody>
+<tr><td class="m">Launch</td><td>28 Mar 2026, 22:51 UTC (29 Mar, 06:51 local)</td></tr>
+<tr><td class="m">Callsign</td><td class="m">9V1WP-11</td></tr>
+<tr><td class="m">Primary payload</td><td>1.28 GHz analogue FPV video, two cameras</td></tr>
+<tr><td class="m">Avionics</td><td>Comms board + battery management board (A. Tan) + drone PDB</td></tr>
+<tr><td class="m">Battery</td><td>3S Li-Po, 5200 mAh</td></tr>
+<tr><td class="m">Peak GNSS altitude</td><td class="m">31 093 m</td></tr>
+<tr><td class="m">APRS frames recovered</td><td class="m">96.9% (370/382)</td></tr>
+</tbody>
+</table></div>
+</div>
+
+<!-- ============================================================ 2 -->
+<h2 id="s2"><span class="no">2</span>Payload</h2>
+<p><a href="#fig-1">FIG. 1</a> is the BEAR-13 payload. My comms board handles telemetry, GNSS, cutter logic, camera switching and VTx enable. A drone PDB makes the 5 V and 12 V rails. Alvin Tan's battery management board sits between the 3S pack and everything else.</p>
+<div class="note-row">
+<p>The battery management board carries two PTC heaters with a one-wire temperature sensor, kicking in at 15 °C to protect capacity, plus a heater MOSFET, the payload-cut MOSFET, and current sensing reported to the comms board over I²C.<sup class="sn-ref"><a href="#sn-3" id="snr-3">3</a></sup> On the ground, Nathan Bong's rotator tracks the balloon from aprs.fi positions. It drives a repurposed Celestron telescope mount through Hamlib, which keeps the high-gain antenna on a payload whose wideband signal has a low power spectral density.</p>
+<aside class="sn" id="sn-3"><span class="n">3</span>An Arduino on veroboard, conformal-coated, flown to near space. It worked.</aside>
+</div>
+
+<figure class="fig" id="fig-1">
+<div class="frame"><a href="architecture-bear13.svg"><img src="architecture-bear13.svg" alt="BEAR-13 block diagram: 3S Li-Po into the battery management board, then a drone PDB feeding the VTx and the comms board; two cameras through a switcher into the VTx and an RHCP antenna; comms board with a half-wave dipole, I2C current link from the battery board, and control lines for VTx enable and camera select" loading="lazy"></a></div>
+<figcaption><span class="lbl">FIG. 1</span> — BEAR-13 payload. Thick red arrows carry power, thin arrows signals, dashed green arrows control lines; dashed boxes are external parts. Redrawn from the Strato TV deck. <span class="hint">Tap the diagram to open it full size.</span></figcaption>
+</figure>
+
+<!-- ============================================================ 3 -->
+<h2 id="s3"><span class="no">3</span>Communications board</h2>
+
+<h3><span class="no">3.1</span>Overview</h3>
+<p>The board is 75 × 55 mm, four layers, 107 footprints and 426 vias, built around an ESP32-WROOM-32E. It carries an SA818-family (DRA818V-compatible) VHF FM transceiver, a u-blox M10 GNSS receiver, an MS5611-01BA barometer rated to about 25 km, a BMM350 magnetometer with an IMU, a MAX31855 type-K thermocouple interface, a DC-bias circuit for decoding received audio, and a TCAN1044 CAN transceiver reserved for future stack expansion <span class="cite">[<a href="#ref-1">1</a>]</span>. Two schematic sheets are in <a href="#appA">Appendix A</a>.</p>
+
+<h3><span class="no">3.2</span>RF front ends and impedance control</h3>
+<p>Two RF paths share the board with a 1.5 W, 1280 MHz transmitter a few centimetres away. Coexistence drove the layout:</p>
+<ul>
+<li><b>GNSS receive.</b> A Mini-Circuits BFCN-1575+ ceramic band-pass filter ahead of the patch antenna input rejects the 1.28 GHz VTx carrier.</li>
+<li><b>VHF transmit.</b> A Mini-Circuits LCFN-160+ low-pass filter at the transceiver output suppresses harmonics of the 144.39 MHz carrier.</li>
+<li><b>Controlled impedance.</b> Both paths are coplanar waveguide with ground (CPWG) on the top layer over an unbroken L2 ground, with no solder mask over the traces and a via fence along both sides.</li>
+<li><b>Low-frequency filtering.</b> Supply and data lines to the radio and sensors pass through 220 Ω @ 100 MHz ferrite beads (BLM21PG221) and common-mode chokes, low-pass below 100 MHz, so 144.39 MHz transmit energy stays out of the logic supply. GPIO-only lines (PTT, power, squelch) are left unfiltered on purpose.</li>
+</ul>
+<p>I took the electrical properties of JLC's 7628 stack-up (0.2104 mm of 7628 prepreg between L1 and L2) and tuned the trace geometry in KiCad. The vendor's impedance solver gives a 0.342 mm trace with a 0.5 mm gap for 50 Ω (<a href="#fig-2">FIG. 2a</a>). As an independent check, the conformal-mapping closed form for CPWG <span class="cite">[<a href="#ref-5">5</a>, <a href="#ref-6">6</a>]</span> was evaluated with a thickness correction for 35 µm copper:</p>
+<div class="eq" id="eq-1">\[ Z_0 = \frac{60\pi}{\sqrt{\varepsilon_\mathrm{eff}}}\left[\frac{K(k)}{K(k')} + \frac{K(k_1)}{K(k_1')}\right]^{-1},\quad k=\frac{w}{w+2s},\quad k_1=\frac{\tanh\left(\pi w/4h\right)}{\tanh\left(\pi(w+2s)/4h\right)} \tag{1} \]</div>
+<div class="note-row">
+<p>where \(K(\cdot)\) is the complete elliptic integral of the first kind and \(k'=\sqrt{1-k^2}\). For \(\varepsilon_r = 4.2\text{–}4.6\) the trace gives \(Z_0 = 48.3\text{–}50.3\,\Omega\) (<a href="#fig-2">FIG. 2b</a>), inside the ±10% fabrication tolerance of the solver result. The ground stitching vias were spaced at λ/8 of the VTx frequency.<sup class="sn-ref"><a href="#sn-4" id="snr-4">4</a></sup></p>
+<aside class="sn" id="sn-4"><span class="n">4</span>That λ should be the guided one. With ε<sub>eff</sub> = 3.36 the guided wavelength at 1280 MHz is 128 mm, so λ/8 is a pitch of 16 mm or less, not the 29 mm the free-space value gives. At GNSS L1 it's 13 mm.</aside>
+</div>
+
+<figure class="fig" id="fig-2">
+<div class="fig-grid" style="--min: 260px; --h: 260px; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr)">
+<figure class="sub"><a href="jlc-impedance.png"><img src="jlc-impedance.png" alt="JLCPCB impedance calculator showing the 7628 stack-up and a 50 ohm CPWG solution" width="1600" height="434" loading="lazy"></a><figcaption><b>(a)</b> Vendor stack-up and CPWG solution.</figcaption></figure>
+<figure class="sub"><a href="cpwg.svg"><img class="plot" src="cpwg.svg" alt="Characteristic impedance against trace width for three permittivities from equation 1" loading="lazy"></a><figcaption><b>(b)</b> Independent check with (1).</figcaption></figure>
+</div>
+<figcaption><span class="lbl">FIG. 2</span> — Controlled-impedance design of the RF traces.</figcaption>
+</figure>
+
+<h3><span class="no">3.3</span>Antenna</h3>
+<div class="note-row">
+<p>The VHF antenna is a half-wave dipole made from coax and enamelled copper wire, integrated into the payload with a generous amount of hot glue. A VNA measurement through an MMCX–SMA adaptor gave VSWR ≈ 1.67: 12 dB return loss and 0.52 dB of mismatch loss.<sup class="sn-ref"><a href="#sn-5" id="snr-5">5</a></sup></p>
+<aside class="sn" id="sn-5"><span class="n">5</span>Burn the enamel off completely or the joint won't take solder. And crimp the coax shield, don't just solder it.</aside>
+</div>
+
+<h3><span class="no">3.4</span>Fabrication</h3>
+<div class="note-row">
+<p>JLCPCB assembled the board, and X-ray inspection confirmed the solder joints on the GNSS module.<sup class="sn-ref"><a href="#sn-6" id="snr-6">6</a></sup> One schematic error made it to hardware: I routed an input-only ESP32 pin to an output function, so it needed a bodge wire. The schematic now records the as-built assignment (VTx enable on GPIO5, cutter on GPIO4).</p>
+<aside class="sn" id="sn-6"><span class="n">6</span>X-ray is free at JLC on boards with BGA parts. The images also show the inside of the barometer and the GNSS module, including the wire bonds on the pressure-sensor die.</aside>
+</div>
+
+<!-- ============================================================ 4 -->
+<h2 id="s4"><span class="no">4</span>Flight firmware</h2>
+
+<h3><span class="no">4.1</span>Execution model</h3>
+<p>The firmware is a cooperative super-loop with <code>millis()</code> software timers and no RTOS <span class="cite">[<a href="#ref-2">2</a>]</span>. GNSS is polled at 1 Hz, the barometer and temperatures every 2 s, and the cutter altitude check every 1.5 s. Transmissions follow the state machine in <a href="#fig-3">FIG. 3</a>. Sensor updates are gated to <span style="font-variant: small-caps">Idle</span>, so heavy transmit current never coincides with sensor reads and GPIO switching.</p>
+
+<figure class="fig" id="fig-3">
+<div class="frame xnarrow" style="max-width: 560px"><a href="tx-state-machine.svg"><img src="tx-state-machine.svg" alt="State machine: Idle to Start after 30 s, Start to Tx after 1 s, Tx blocking 1 to 40 s to Cooldown, Cooldown to Idle after 0.25 s; APRS comment pages C and D" loading="lazy"></a></div>
+<figcaption><span class="lbl">FIG. 3</span> — Transmit state machine, and the two telemetry pages that alternate in the APRS comment field.</figcaption>
+</figure>
+
+<h3><span class="no">4.2</span>Telemetry format</h3>
+<p>Each APRS frame carries a six-digit frame counter, <code>TxC</code> or <code>TxD</code>, then one of the two housekeeping pages in <a href="#fig-3">FIG. 3</a>. The counter increments on every transmission, so gaps between received counters count lost frames exactly (<a href="#s6-5">§6.5</a>). On BEAR-13 the second field of page C was reserved for an external thermocouple (<code>E:</code>) and read zero.</p>
+
+<h3><span class="no">4.3</span>GNSS assistance and Wi-Fi</h3>
+<p>At power-on the board joins a local Wi-Fi network, downloads u-blox AssistNow data and seeds the receiver with an approximate position, then shuts Wi-Fi down. If the board reboots above 1 km, Wi-Fi stays off so it can't boot-loop. One side effect turned up in the data: the first BEAR-13 fix in the archive (1.35217° N, 103.81983° E) is exactly the hard-coded seed, not a measured position. The post-flight spreadsheet used it as its line-of-sight origin, which skews its range and elevation columns (<a href="#s7">§7</a>).</p>
+
+<h3><span class="no">4.4</span>Flight termination logic</h3>
+<p>The cutter routine declares a cut after GNSS altitude reads above 30 000 m on five consecutive 1.5 s checks, then holds the cutter output for 15 s. On BEAR-13 the cutter flag stayed <code>X</code> for the whole flight. The same logic flew as a dry run on BEAR-14 and turned out to re-arm instead of latching (<a href="../pwr-001-bear14-urex-pdb/#s8">PWR-001 §8</a>).</p>
+
+<!-- ============================================================ 5 -->
+<h2 id="s5"><span class="no">5</span>VTx bench test and antenna choice</h2>
+
+<h3><span class="no">5.1</span>RF power meter test</h3>
+<p>Before flight I measured the VTx output on an RF power meter through 120 dB of fixed attenuation: two 30 dB and three 20 dB attenuators in series. I ran it from both a 3S (11.1 V) and a 2S (7.4 V) supply. Output dropped by about 2 dB on 2S, so the transmitter is undervolted there, and the flight pack was 3S. The bench numbers looked fine. The flight did not match, and <a href="#s7">§7</a> works out why.</p>
+<p>The pre-flight link estimate assumed 117 dB of free-space path loss at 50 km, 1 dBi of transmit gain and about 10 dBi of receive gain. Even at the time, the deck noted that this treated the signal as roughly narrowband, when it is really 1500 mW spread over 20 MHz. Its power spectral density is what matters.</p>
+<h3><span class="no">5.2</span>Antenna polarisation</h3>
+<p>On earlier SSTV flights, payload roll put periodic null lines through the received images (<a href="#fig-4">FIG. 4a</a>). A rolling payload turns a linearly polarised antenna's orientation into a moving target, and the nulls are where the polarisations cross. So for the VTx I picked a right-hand circularly polarised (RHCP) antenna, which doesn't care about roll.</p>
+
+<figure class="fig" id="fig-4">
+<div class="fig-grid" style="--min: 260px; --h: 230px">
+<figure class="sub"><a href="sstv-nulls.jpg"><img src="sstv-nulls.jpg" alt="Received SSTV image with horizontal null lines" width="1280" height="680" loading="lazy"></a><figcaption><b>(a)</b> Null lines in an SSTV image from an earlier flight.</figcaption></figure>
+<figure class="sub"><a href="ground-monitor.jpg"><img src="ground-monitor.jpg" alt="Ground station monitor showing live video from BEAR-13" width="1280" height="720" loading="lazy"></a><figcaption><b>(b)</b> Ground-station monitor during BEAR-13.</figcaption></figure>
+</div>
+<figcaption><span class="lbl">FIG. 4</span> — Why the VTx antenna is circularly polarised, and what came down the link.</figcaption>
+</figure>
+
+<!-- ============================================================ 6 -->
+<h2 id="s6"><span class="no">6</span>Flight results</h2>
+
+<h3 id="s6-1"><span class="no">6.1</span>Data and method</h3>
+<div class="note-row">
+<p>The data are aprs.fi exports of every frame from 9V1WP-11 the APRS network received, archived in the firmware repository <span class="cite">[<a href="#ref-2">2</a>]</span>. Positions and altitudes come from the GNSS receiver. Launch is the last sample below 150 m before sustained climb, and rates are least-squares fits over the stated altitude bands. Slant range and elevation are computed on a spherical Earth from the NUS launch site (1.29717° N, 103.76167° E), assuming the ground station was there. Pressure altitude uses the 1976 US Standard Atmosphere <span class="cite">[<a href="#ref-4">4</a>]</span>. BEAR-14 (<a href="../pwr-001-bear14-urex-pdb/">PWR-001</a>) is shown alongside for comparison.<sup class="sn-ref"><a href="#sn-7" id="snr-7">7</a></sup></p>
+<aside class="sn" id="sn-7"><span class="n">7</span>The BEAR-13 export has only hours and minutes, so its rates and durations are uncertain by about a minute. BEAR-14 has one-second timestamps.</aside>
+</div>
+
+<h3 id="s6-2"><span class="no">6.2</span>Trajectory</h3>
+
+<div class="tbl" id="tab-2">
+<div class="cap"><span class="lbl">TABLE 2</span> — Trajectory from telemetry.</div>
+<div class="scroll"><table style="min-width: 600px">
+<thead><tr><th>Parameter</th><th class="r">BEAR-13</th><th class="r">BEAR-14</th></tr></thead>
+<tbody>
+<tr><td>Launch (UTC)</td><td class="m r">22:51</td><td class="m r">00:15</td></tr>
+<tr><td>Peak altitude (UTC)</td><td class="m r">31 093 m (02:36)</td><td class="m r">33 504 m (02:43)</td></tr>
+<tr><td>Time to peak</td><td class="m r">225 min</td><td class="m r">148 min</td></tr>
+<tr><td>Ascent rate, fitted (1 km to peak)</td><td class="m r">2.58 m/s (R² = 0.997)</td><td class="m r">3.71 m/s (R² = 0.999)</td></tr>
+<tr><td>Descent rate, upper (&gt;15 km)</td><td class="m r">47.6 m/s</td><td class="m r">32.7 m/s</td></tr>
+<tr><td>Descent rate, lower (0.6–5 km)</td><td class="m r">15.8 m/s</td><td class="m r">7.4 m/s</td></tr>
+<tr><td>Peak ground speed (altitude)</td><td class="m r">106 km/h (23.7 km)</td><td class="m r">152 km/h (14.2 km)</td></tr>
+<tr><td>Launch-to-last-fix distance</td><td class="m r">18.9 km</td><td class="m r">28.9 km</td></tr>
+<tr><td>Max slant range from launch site</td><td class="m r">57.7 km</td><td class="m r">55.3 km</td></tr>
+</tbody>
+</table></div>
+</div>
+
+<figure class="fig" id="fig-5">
+<div class="narrow" style="max-width: 820px"><a href="alt-profiles.svg"><img src="alt-profiles.svg" alt="GNSS altitude against time from launch for BEAR-13 and BEAR-14" loading="lazy"></a></div>
+<figcaption><span class="lbl">FIG. 5</span> — GNSS altitude against time from launch.</figcaption>
+</figure>
+
+<p>The ascent is close to linear (<a href="#fig-5">FIG. 5</a>), as expected when a balloon's drag and buoyancy scale together with altitude; BEAR-13's lower rate than BEAR-14 reflects less free lift. Binned rates (<a href="#fig-6">FIG. 6b</a>) show BEAR-13 slowing from about 2.5 m/s to 0.7 m/s over its last 2 km, consistent with approaching its float ceiling. With the cutter flag at <code>X</code> throughout, the telemetry can't say whether the termination at 31.1 km was a cut or a natural burst.</p>
+<p>A descent of 33–48 m/s above 15 km is normal, since a parachute makes little drag in that air. Near the ground, though, BEAR-13 came down at 15.8 m/s, about twice BEAR-14's rate and well above a typical 5–8 m/s target, which points to a parachute that didn't fully open or was fouled. That's outside this board's scope, so it's flagged for the recovery team. The payload drifted west and north-west and its last fix was 19 km from the launch site, over Johor (<a href="#fig-6">FIG. 6a</a>).</p>
+
+<figure class="fig" id="fig-6">
+<div class="fig-grid" style="--min: 260px; --h: auto; grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr); align-items: start">
+<figure class="sub"><a href="ground-tracks.svg"><img class="plot" src="ground-tracks.svg" alt="Ground tracks of both flights" loading="lazy" style="height: auto"></a><figcaption><b>(a)</b> Ground tracks.</figcaption></figure>
+<figure class="sub"><a href="ascent-rate.svg"><img class="plot" src="ascent-rate.svg" alt="Ascent rate in 2 km altitude bins" loading="lazy" style="height: auto"></a><figcaption><b>(b)</b> Ascent rate, 2 km bins.</figcaption></figure>
+</div>
+<figcaption><span class="lbl">FIG. 6</span> — Horizontal trajectory and vertical performance.</figcaption>
+</figure>
+
+<h3 id="s6-3"><span class="no">6.3</span>Power</h3>
+<p>The VTx and two cameras dominate the load: mean draw was 8.1 W (median current 0.59 A, peak 1.84 A), and the payload used 40.1 Wh, about two-thirds of the 5.2 Ah pack, over the 4.9 h logged. Bus voltage fell from 12.25 V at launch to 11.27 V (3.76 V per cell) at the last frame. The current spikes after launch in <a href="#fig-7">FIG. 7</a> are the battery management board's heaters switching on at 15 °C. The margin was enough for this flight, but a longer pad hold or a slower ascent would have flattened the battery before landing. That is the case for switching payloads off on the pad, which BEAR-14's PDB added.</p>
+
+<figure class="fig" id="fig-7">
+<div class="narrow" style="max-width: 860px"><a href="power-both.svg"><img src="power-both.svg" alt="Bus voltage, current and altitude against time for both flights" loading="lazy"></a></div>
+<figcaption><span class="lbl">FIG. 7</span> — Power telemetry, BEAR-13 (top) and BEAR-14 (bottom). Current is sampled about every 70 s, so short transmit bursts are undersampled.</figcaption>
+</figure>
+
+<h3 id="s6-4"><span class="no">6.4</span>Temperature and pressure</h3>
+<p>The avionics bay, read from the MS5611 die, fell to −1.6 °C at 18.7 km (<a href="#fig-8">FIG. 8a</a>). The barometer tracked the standard atmosphere over three orders of magnitude of pressure (<a href="#fig-8">FIG. 8b</a>). Below 10 km its ISA altitude read low by a mean of 248 m. Above 20 km it read high, by up to 1.7 km. That's the tropical atmosphere, which is warmer than ISA in the troposphere and colder around the tropopause, not the sensor. Separately, pressure goes out as integer hectopascals, which is a 570 m altitude step at 30 km.</p>
+
+<figure class="fig" id="fig-8">
+<div class="fig-grid" style="--min: 240px; --h: auto; grid-template-columns: minmax(0, 1fr) minmax(0, 1.8fr); align-items: start">
+<figure class="sub"><a href="temp-vs-alt.svg"><img class="plot" src="temp-vs-alt.svg" alt="Bay temperature against altitude on ascent for both flights" loading="lazy" style="height: auto"></a><figcaption><b>(a)</b> Bay temperature against altitude, ascent.</figcaption></figure>
+<figure class="sub"><a href="baro.svg"><img class="plot" src="baro.svg" alt="Measured pressure and pressure-altitude error against GNSS altitude" loading="lazy" style="height: auto"></a><figcaption><b>(b)</b> Pressure and pressure-altitude error.</figcaption></figure>
+</div>
+<figcaption><span class="lbl">FIG. 8</span> — Thermal and barometric performance.</figcaption>
+</figure>
+
+<h3 id="s6-5"><span class="no">6.5</span>Telemetry link</h3>
+<p>Frame counters show the APRS network recovered 96.9% of BEAR-13's frames between launch and last fix, and it never lost more than one in a row (<a href="#fig-9">FIG. 9</a>). Through the whole flight the GNSS held lock next to the 1.5 W VTx, so the band-pass filter, CPWG routing and bead filtering did their job.</p>
+
+<figure class="fig" id="fig-9">
+<div class="narrow" style="max-width: 820px"><a href="packets.svg"><img src="packets.svg" alt="Lost frames before each received frame for both flights" loading="lazy"></a></div>
+<figcaption><span class="lbl">FIG. 9</span> — Lost frames preceding each received frame, from gaps in the on-board counter.</figcaption>
+</figure>
+
+<!-- ============================================================ 7 -->
+<h2 id="s7"><span class="no">7</span>Why the video died at 46 km</h2>
+<p>We saw the video degrade at a slant range of about 39 km and lose it completely at about 46 km. Recomputing the geometry from the launch site (<a href="#fig-10">FIG. 10</a>), the payload crossed 39 km at 22.6 km altitude and 35° elevation, and 46 km at 23.6 km altitude and 31° elevation, at 01:32 UTC. The time matches the post-flight spreadsheet. Its ≈60° elevation doesn't: a payload 23.6 km up and 46 km away has to be below 31°. That's the AssistNow seed being used as the origin (<a href="#s4">§4.3</a>).</p>
+
+<figure class="fig" id="fig-10">
+<div class="narrow" style="max-width: 820px"><a href="f13-geometry.svg"><img src="f13-geometry.svg" alt="BEAR-13 slant range and elevation against time with video degradation and loss marked" loading="lazy"></a></div>
+<figcaption><span class="lbl">FIG. 10</span> — BEAR-13 slant range and elevation from the launch site, with the reported degradation and loss points.</figcaption>
+</figure>
+
+<p>The pre-flight estimate used 117 dB of free-space loss at 50 km. Friis at 1280 MHz gives</p>
+<div class="eq" id="eq-2">\[ L_\mathrm{fs} = 20\log_{10} d_\mathrm{km} + 20\log_{10} f_\mathrm{MHz} + 32.44 = 128.6\,\mathrm{dB}\quad (d = 50\,\mathrm{km}) \tag{2} \]</div>
+<p>so the estimate was 11.6 dB optimistic. Redoing the budget with \(P_t = 31.8\,\mathrm{dBm}\) (1.5 W), \(G_t = 1\,\mathrm{dBi}\), \(G_r = 10\,\mathrm{dBi}\) and 3 dB of miscellaneous cable and pointing loss:</p>
+<div class="eq" id="eq-3">\[ P_r(46\,\mathrm{km}) = 31.8 + 1 + 10 - 127.8 - 3 = -88.1\,\mathrm{dBm} \tag{3} \]</div>
+<p>The noise floor in 20 MHz with an assumed 4 dB receiver noise figure is \(-174 + 10\log_{10}(20\,\mathrm{MHz}) + NF = -97.0\,\mathrm{dBm}\), so the carrier-to-noise ratio at 46 km is 8.9 dB. That's right at the FM demodulator threshold of about 8–10 dB, below which analogue video breaks up abruptly. At 39 km the predicted CNR is 10.3 dB, just above threshold, which is where the picture started to go (<a href="#fig-11">FIG. 11</a>).</p>
+
+<figure class="fig" id="fig-11">
+<div class="narrow" style="max-width: 820px"><a href="link-budget.svg"><img src="link-budget.svg" alt="Predicted carrier-to-noise ratio against slant range, crossing the FM threshold near 46 km" loading="lazy"></a></div>
+<figcaption><span class="lbl">FIG. 11</span> — Predicted CNR of the 1.28 GHz video link against slant range.</figcaption>
+</figure>
+
+<p>So the link ran out of margin, and nothing outside the budget is needed to explain it. The assumed losses are uncertain in their own right: a payload antenna 3–10 dB down off boresight at 30° elevation, or RHCP-to-linear polarisation loss, would move the crossing in to 15–33 km. That the observed loss fits the 3 dB case suggests the RHCP antenna kept pattern and polarisation losses small. Interference from the rotator's motor drivers was suspected at the time but never measured, so its contribution can't be established either way. For a repeat flight, in order of leverage:</p>
+<ol>
+<li>A higher-gain receive antenna. A 20 dBi dish or array adds 10 dB, roughly tripling usable range.</li>
+<li>Narrower occupied bandwidth. Digital video in about 2 MHz, as on Horus DATV <span class="cite">[<a href="#ref-8">8</a>]</span>, drops the noise floor by 10 dB and adds FEC gain.</li>
+<li>More transmit power, which costs battery energy this flight couldn't easily spare (<a href="#s6-3">§6.3</a>).</li>
+</ol>
+
+<!-- ============================================================ 8 -->
+<h2 id="s8"><span class="no">8</span>Anomalies</h2>
+<div class="tbl" id="tab-3">
+<div class="cap"><span class="lbl">TABLE 3</span> — BEAR-13 anomalies, from the flight data and code review. Numbering follows the UREx report.</div>
+<div class="scroll"><table style="min-width: 760px">
+<thead><tr><th>#</th><th style="width: 22%">Anomaly</th><th>Evidence / cause</th><th style="width: 30%">Corrective action</th></tr></thead>
+<tbody>
+<tr><td class="id">A5</td><td>Video link budget</td><td>FSPL underestimated by 11.6 dB; the 20 MHz signal treated as narrowband.</td><td>Use the budget in <a href="#s7">§7</a>; add receive gain.</td></tr>
+<tr><td class="id">A6</td><td>Seeded position in data</td><td>First fix is the AssistNow seed, used as the spreadsheet origin.</td><td>Discard fixes without a 3D solution; log fix type in telemetry.</td></tr>
+<tr><td class="id">A4</td><td>Barometric quantisation</td><td>Integer hectopascals: a 570 m step at 30 km. MS5611 out of spec below 10 hPa <span class="cite">[<a href="#ref-7">7</a>]</span>.</td><td>Send 0.1 Pa units or raw counts.</td></tr>
+<tr><td class="id">A7</td><td>Board errata</td><td>Input-only pin routed to an output (bodged).</td><td>Fixed in the schematic; next board revision.</td></tr>
+<tr><td class="id">A8</td><td>Fast landing</td><td>15.8 m/s below 5 km, against 7.4 m/s on BEAR-14.</td><td>Refer to the recovery team.</td></tr>
+</tbody>
+</table></div>
+</div>
+
+<!-- ============================================================ 9 -->
+<h2 id="s9"><span class="no">9</span>Conclusions</h2>
+<p>The comms board delivered 96.9% frame recovery to 31.1 km with independently checked 50 Ω RF routing, and its GNSS kept lock beside a 1.5 W, 1.28 GHz transmitter. The video link worked as built: live analogue video from a weather balloon, a first for Southeast Asia, until the slant range outran a link budget that had been 11.6 dB optimistic. With the budget corrected, the loss point is predicted to within a kilometre. Next time, size the link with (2)–(3), and buy margin with receive gain or a narrowband digital downlink (DVB-S2 on an SDR) rather than transmit power.</p>
+<p>The <a href="https://drive.google.com/drive/folders/1_X3jxc-5LpaSDKGHUICmf7610ZXz4bj3?usp=drive_link">flight video highlights</a> (14 km halo, 20 km, 25 km, descent) are in a public Drive folder.</p>
+
+<h3><span class="no">—</span>Acknowledgements</h3>
+<p>Thanks to the NUS Satellite Technology and Research Centre for programme support under UREx; BEAR (9V1FH, 9V1LW, 9V1CV, 9V1YP) for launch, rigging, ground support and regulatory work; Bumblebee Autonomous Systems NUS; RSAF 203 Squadron, CAAS and IMDA for flight and spectrum approvals; and 9V1LH, whose BEAR-4 APRS firmware was the starting point for the telemetry code.</p>
+
+<!-- ============================================================ sources -->
+<h2 id="sources"><span class="no">S</span>Sources and originals</h2>
+<div class="tbl" id="dl">
+<div class="scroll"><table style="min-width: 560px">
+<thead><tr><th>Source</th><th>Format</th><th>Note</th></tr></thead>
+<tbody>
+<tr><td class="m"><a href="https://docs.google.com/presentation/d/1dqGqkR1l4U1Nx-cwSBNaxGmJI2lsjK9NqRd7B00oZQ8">Project Strato TV insights</a></td><td class="m">Google Slides</td><td>The original BEAR-13 deck</td></tr>
+<tr><td class="m"><a href="https://drive.google.com/drive/folders/1_X3jxc-5LpaSDKGHUICmf7610ZXz4bj3?usp=drive_link">Flight videos</a></td><td class="m">Google Drive</td><td>Footage from the downlink</td></tr>
+<tr><td class="m"><a href="star-avionics-stack-report.pdf">star-avionics-stack-report.pdf</a></td><td class="m">PDF, 26 pp</td><td>UREx report covering both flights</td></tr>
+<tr><td class="m"><a href="star-avionics-stack-report-latex.zip">star-avionics-stack-report-latex.zip</a></td><td class="m">LaTeX + Python</td><td>Report source and the scripts that regenerate every number here</td></tr>
+<tr><td class="m"><a href="https://github.com/RandomAerospace/BEAR13_FIRMWARE">BEAR13_FIRMWARE</a></td><td class="m">Arduino + CSV</td><td>Flight firmware and raw aprs.fi exports</td></tr>
+<tr><td class="m"><a href="https://github.com/RandomAerospace/COMMS-BOARD">COMMS-BOARD</a></td><td class="m">KiCad</td><td>Schematic, layout and BOM</td></tr>
+</tbody>
+</table></div>
+</div>
+
+<h3 id="refs"><span class="no">R</span>References</h3>
+<ol class="refs">
+<li id="ref-1"><span class="k">[1]</span><span>S. W. Phyo, <i>COMMS-BOARD: APRS + GNSS board with hot-wire and FPV camera control</i>, GitHub, 2026. <a href="https://github.com/RandomAerospace/COMMS-BOARD">github.com/RandomAerospace/COMMS-BOARD</a></span></li>
+<li id="ref-2"><span class="k">[2]</span><span>S. W. Phyo, <i>BEAR13_FIRMWARE: HAB telemetry and power firmware, with flight data</i>, GitHub, 2026. <a href="https://github.com/RandomAerospace/BEAR13_FIRMWARE">github.com/RandomAerospace/BEAR13_FIRMWARE</a></span></li>
+<li id="ref-3"><span class="k">[3]</span><span>APRS Working Group, <i>APRS Protocol Reference, Version 1.0</i>, Tucson Amateur Packet Radio, 2000.</span></li>
+<li id="ref-4"><span class="k">[4]</span><span>NOAA, NASA, USAF, <i>U.S. Standard Atmosphere, 1976</i>, NOAA-S/T 76-1562, 1976.</span></li>
+<li id="ref-5"><span class="k">[5]</span><span>R. N. Simons, <i>Coplanar Waveguide Circuits, Components, and Systems</i>, Wiley-IEEE Press, 2001.</span></li>
+<li id="ref-6"><span class="k">[6]</span><span>B. C. Wadell, <i>Transmission Line Design Handbook</i>, Artech House, 1991.</span></li>
+<li id="ref-7"><span class="k">[7]</span><span>TE Connectivity, <i>MS5611-01BA03 Barometric Pressure Sensor</i>, datasheet.</span></li>
+<li id="ref-8"><span class="k">[8]</span><span>Amateur Radio Experimenters Group, <i>Horus DATV</i>. <a href="https://www.areg.org.au/archives/category/horus-datv">areg.org.au/archives/category/horus-datv</a></span></li>
+</ol>
+
+<!-- ============================================================ appendix -->
+<h2 id="appA"><span class="no">A</span>Appendix: schematic sheets</h2>
+<p>Full schematics are in the repository <span class="cite">[<a href="#ref-1">1</a>]</span>. Sheets are vector; tap one to open it full size.</p>
+<figure class="fig" id="fig-12">
+<div class="frame"><a href="sch-comms-radio.svg"><img src="sch-comms-radio.svg" alt="Schematic sheet: SA818 VHF transceiver, output filter and receive-audio bias network" loading="lazy"></a></div>
+<figcaption><span class="lbl">FIG. 12</span> — SA818 VHF transceiver, output filter and receive-audio bias network.</figcaption>
+</figure>
+<figure class="fig" id="fig-13">
+<div class="frame"><a href="sch-comms-gnss.svg"><img src="sch-comms-gnss.svg" alt="Schematic sheet: GNSS with band-pass filter and 50 ohm feed, barometer, thermocouple interface and MARG sensors" loading="lazy"></a></div>
+<figcaption><span class="lbl">FIG. 13</span> — GNSS with band-pass filter and 50 Ω feed, MS5611 barometer, thermocouple interface and MARG sensors.</figcaption>
+</figure>
+
+<h2 id="rev"><span class="no">Δ</span>Revisions</h2>
+<div class="tbl">
+<div class="scroll"><table style="min-width: 420px">
+<thead><tr><th style="width: 60px">Rev</th><th style="width: 130px">Date</th><th>Change</th></tr></thead>
+<tbody>
+<tr><td class="id">A</td><td class="m">2026-10-26</td><td>First issue, from the Strato TV deck and the October 2026 UREx report.</td></tr>
+</tbody>
+</table></div>
+</div>
+
+</article>
+
+<nav class="series" aria-label="Series: BEAR flights">
+<span><div class="k">← PREVIOUS IN SERIES</div><div class="t">—</div></span>
+<a href="../pwr-001-bear14-urex-pdb/"><div class="k">NEXT IN SERIES →</div><div class="t">PWR-001 · BEAR-14: UREx power distribution board</div></a>
+</nav>
+
+</main>
+
+<footer class="site-foot">
+<div class="wrap">
+<span>© 2026 Sai Wai Phyo · 9V1WP</span>
+<span><a href="/">Home</a> · <a href="https://github.com/RandomAerospace/saiwaiphyo.github.io">Source</a></span>
+</div>
+</footer>
+
+</body>
+</html>
