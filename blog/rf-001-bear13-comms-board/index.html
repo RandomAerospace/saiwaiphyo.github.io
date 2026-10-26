@@ -99,7 +99,7 @@
 
 <h3><span class="no">1.2</span>Why 1280 MHz, and why analogue</h3>
 <div class="note-row">
-<p>Analogue FPV transmitters are cheap (about $60) because drones use them: an NTSC/PAL video signal frequency-modulates a carrier. The catch is bandwidth, about 20 MHz. That doesn't fit anywhere in the VHF or UHF amateur bands, but the 1240–1300 MHz band has 40 MHz of room, subject to IMDA approval. The alternative is digital TV from an SDR in about 2 MHz, which is how the Horus DATV flights do it <span class="cite">[<a href="#ref-8">8</a>]</span>. That costs far more in hardware, so we went through the regulators instead.<sup class="sn-ref"><a href="#sn-2" id="snr-2">2</a></sup></p>
+<p>Analogue FPV transmitters are cheap (about $60) because drones use them: an NTSC/PAL video signal frequency-modulates a carrier. The catch is bandwidth, about 20 MHz (<a href="#fig-5">FIG. 5</a>). That doesn't fit anywhere in the VHF or UHF amateur bands, but the 1240–1300 MHz band has 40 MHz of room, subject to IMDA approval. The alternative is digital TV from an SDR in about 2 MHz, which is how the Horus DATV flights do it <span class="cite">[<a href="#ref-8">8</a>]</span>. That costs far more in hardware, so we went through the regulators instead.<sup class="sn-ref"><a href="#sn-2" id="snr-2">2</a></sup></p>
 <aside class="sn" id="sn-2"><span class="n">2</span>Horus used a LimeSDR on a Raspberry Pi to send 720 × 404 video at 445 MHz and 800 mW: DVB-S2, QPSK, FEC ½, with the transport stream built in GNU Radio.</aside>
 </div>
 
@@ -196,17 +196,30 @@
 <h2 id="s5"><span class="no">5</span>VTx bench test and antenna choice</h2>
 
 <h3><span class="no">5.1</span>RF power meter test</h3>
-<p>Before flight I measured the VTx output on an RF power meter through 120 dB of fixed attenuation: two 30 dB and three 20 dB attenuators in series. I ran it from both a 3S (11.1 V) and a 2S (7.4 V) supply. Output dropped by about 2 dB on 2S, so the transmitter is undervolted there, and the flight pack was 3S. The bench numbers looked fine. The flight did not match, and <a href="#s7">§7</a> works out why.</p>
+<p>Before flight I measured the VTx output on an RF power meter through 120 dB of fixed attenuation: two 30 dB and three 20 dB attenuators in series. I ran it for 32 s each from a 3S (11.1 V) and a 2S (7.4 V) supply (<a href="#fig-4">FIG. 4</a>). The meter averaged −8.20 dBm on 3S and −10.69 dBm on 2S: 2.5 dB less power, or 56% of the 3S output. The 2S trace also has dips down to −12.7 dBm that the 3S trace doesn't. So the transmitter is undervolted on 2S, and the flight pack was 3S. The bench numbers looked fine. The flight did not match, and <a href="#s7">§7</a> works out why.</p>
+<figure class="fig" id="fig-4">
+<div class="fig-grid" style="--h: 360px; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: end">
+<figure class="sub"><a href="vtx-power-meter.jpg"><img src="vtx-power-meter.jpg" alt="RF power meter traces over 32 seconds: 3S supply averaging minus 8.2 dBm, 2S supply averaging minus 10.7 dBm with dips" width="472" height="532" loading="lazy"></a><figcaption><b>(a)</b> Power vs time, 3S (top) and 2S (bottom).</figcaption></figure>
+<figure class="sub"><a href="vtx-bench-monitor.jpg"><img src="vtx-bench-monitor.jpg" alt="Bench monitor showing the ArduCam OSD boot screen received over the VTx link" width="380" height="202" loading="lazy"></a><figcaption><b>(b)</b> Video received on the bench monitor.</figcaption></figure>
+</div>
+<figcaption><span class="lbl">FIG. 4</span> — VTx power-meter test. Averages: −8.20 dBm (3S, 11.1 V) and −10.69 dBm (2S, 7.4 V).</figcaption>
+</figure>
+
+<figure class="fig" id="fig-5">
+<a href="vtx-sdr-spectrum.jpg"><img src="vtx-sdr-spectrum.jpg" alt="SDR waterfall of the FPV transmitter around 1.28 GHz, with the bench setup and monitor inset" width="910" height="413" loading="lazy" style="width: 100%"></a>
+<figcaption><span class="lbl">FIG. 5</span> — The analogue FPV signal on an SDR waterfall around 1.28 GHz, about 20 MHz wide, with the bench setup inset.</figcaption>
+</figure>
+
 <p>The pre-flight link estimate assumed 117 dB of free-space path loss at 50 km, 1 dBi of transmit gain and about 10 dBi of receive gain. Even at the time, the deck noted that this treated the signal as roughly narrowband, when it is really 1500 mW spread over 20 MHz. Its power spectral density is what matters.</p>
 <h3><span class="no">5.2</span>Antenna polarisation</h3>
-<p>On earlier SSTV flights, payload roll put periodic null lines through the received images (<a href="#fig-4">FIG. 4a</a>). A rolling payload turns a linearly polarised antenna's orientation into a moving target, and the nulls are where the polarisations cross. So for the VTx I picked a right-hand circularly polarised (RHCP) antenna, which doesn't care about roll.</p>
+<p>On earlier SSTV flights, payload roll put periodic null lines through the received images (<a href="#fig-6">FIG. 6a</a>). A rolling payload turns a linearly polarised antenna's orientation into a moving target, and the nulls are where the polarisations cross. So for the VTx I picked a right-hand circularly polarised (RHCP) antenna, which doesn't care about roll.</p>
 
-<figure class="fig" id="fig-4">
+<figure class="fig" id="fig-6">
 <div class="fig-grid" style="--min: 260px; --h: 230px">
 <figure class="sub"><a href="sstv-nulls.jpg"><img src="sstv-nulls.jpg" alt="Received SSTV image with horizontal null lines" width="1280" height="680" loading="lazy"></a><figcaption><b>(a)</b> Null lines in an SSTV image from an earlier flight.</figcaption></figure>
 <figure class="sub"><a href="ground-monitor.jpg"><img src="ground-monitor.jpg" alt="Ground station monitor showing live video from BEAR-13" width="1280" height="720" loading="lazy"></a><figcaption><b>(b)</b> Ground-station monitor during BEAR-13.</figcaption></figure>
 </div>
-<figcaption><span class="lbl">FIG. 4</span> — Why the VTx antenna is circularly polarised, and what came down the link.</figcaption>
+<figcaption><span class="lbl">FIG. 6</span> — Why the VTx antenna is circularly polarised, and what came down the link.</figcaption>
 </figure>
 
 <!-- ============================================================ 6 -->
@@ -238,67 +251,67 @@
 </table></div>
 </div>
 
-<figure class="fig" id="fig-5">
+<figure class="fig" id="fig-7">
 <div class="narrow" style="max-width: 820px"><a href="alt-profiles.svg"><img src="alt-profiles.svg" alt="GNSS altitude against time from launch for BEAR-13 and BEAR-14" loading="lazy"></a></div>
-<figcaption><span class="lbl">FIG. 5</span> — GNSS altitude against time from launch.</figcaption>
+<figcaption><span class="lbl">FIG. 7</span> — GNSS altitude against time from launch.</figcaption>
 </figure>
 
-<p>The ascent is close to linear (<a href="#fig-5">FIG. 5</a>), as expected when a balloon's drag and buoyancy scale together with altitude; BEAR-13's lower rate than BEAR-14 reflects less free lift. Binned rates (<a href="#fig-6">FIG. 6b</a>) show BEAR-13 slowing from about 2.5 m/s to 0.7 m/s over its last 2 km, consistent with approaching its float ceiling. With the cutter flag at <code>X</code> throughout, the telemetry can't say whether the termination at 31.1 km was a cut or a natural burst.</p>
-<p>A descent of 33–48 m/s above 15 km is normal, since a parachute makes little drag in that air. Near the ground, though, BEAR-13 came down at 15.8 m/s, about twice BEAR-14's rate and well above a typical 5–8 m/s target, which points to a parachute that didn't fully open or was fouled. That's outside this board's scope, so it's flagged for the recovery team. The payload drifted west and north-west and its last fix was 19 km from the launch site, over Johor (<a href="#fig-6">FIG. 6a</a>).</p>
+<p>The ascent is close to linear (<a href="#fig-7">FIG. 7</a>), as expected when a balloon's drag and buoyancy scale together with altitude; BEAR-13's lower rate than BEAR-14 reflects less free lift. Binned rates (<a href="#fig-8">FIG. 8b</a>) show BEAR-13 slowing from about 2.5 m/s to 0.7 m/s over its last 2 km, consistent with approaching its float ceiling. With the cutter flag at <code>X</code> throughout, the telemetry can't say whether the termination at 31.1 km was a cut or a natural burst.</p>
+<p>A descent of 33–48 m/s above 15 km is normal, since a parachute makes little drag in that air. Near the ground, though, BEAR-13 came down at 15.8 m/s, about twice BEAR-14's rate and well above a typical 5–8 m/s target, which points to a parachute that didn't fully open or was fouled. That's outside this board's scope, so it's flagged for the recovery team. The payload drifted west and north-west and its last fix was 19 km from the launch site, over Johor (<a href="#fig-8">FIG. 8a</a>).</p>
 
-<figure class="fig" id="fig-6">
+<figure class="fig" id="fig-8">
 <div class="fig-grid" style="--min: 260px; --h: auto; grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr); align-items: start">
 <figure class="sub"><a href="ground-tracks.svg"><img class="plot" src="ground-tracks.svg" alt="Ground tracks of both flights" loading="lazy" style="height: auto"></a><figcaption><b>(a)</b> Ground tracks.</figcaption></figure>
 <figure class="sub"><a href="ascent-rate.svg"><img class="plot" src="ascent-rate.svg" alt="Ascent rate in 2 km altitude bins" loading="lazy" style="height: auto"></a><figcaption><b>(b)</b> Ascent rate, 2 km bins.</figcaption></figure>
 </div>
-<figcaption><span class="lbl">FIG. 6</span> — Horizontal trajectory and vertical performance.</figcaption>
+<figcaption><span class="lbl">FIG. 8</span> — Horizontal trajectory and vertical performance.</figcaption>
 </figure>
 
 <h3 id="s6-3"><span class="no">6.3</span>Power</h3>
-<p>The VTx and two cameras dominate the load: mean draw was 8.1 W (median current 0.59 A, peak 1.84 A), and the payload used 40.1 Wh, about two-thirds of the 5.2 Ah pack, over the 4.9 h logged. Bus voltage fell from 12.25 V at launch to 11.27 V (3.76 V per cell) at the last frame. The current spikes after launch in <a href="#fig-7">FIG. 7</a> are the battery management board's heaters switching on at 15 °C. The margin was enough for this flight, but a longer pad hold or a slower ascent would have flattened the battery before landing. That is the case for switching payloads off on the pad, which BEAR-14's PDB added.</p>
+<p>The VTx and two cameras dominate the load: mean draw was 8.1 W (median current 0.59 A, peak 1.84 A), and the payload used 40.1 Wh, about two-thirds of the 5.2 Ah pack, over the 4.9 h logged. Bus voltage fell from 12.25 V at launch to 11.27 V (3.76 V per cell) at the last frame. The current spikes after launch in <a href="#fig-9">FIG. 9</a> are the battery management board's heaters switching on at 15 °C. The margin was enough for this flight, but a longer pad hold or a slower ascent would have flattened the battery before landing. That is the case for switching payloads off on the pad, which BEAR-14's PDB added.</p>
 
-<figure class="fig" id="fig-7">
+<figure class="fig" id="fig-9">
 <div class="narrow" style="max-width: 860px"><a href="power-both.svg"><img src="power-both.svg" alt="Bus voltage, current and altitude against time for both flights" loading="lazy"></a></div>
-<figcaption><span class="lbl">FIG. 7</span> — Power telemetry, BEAR-13 (top) and BEAR-14 (bottom). Current is sampled about every 70 s, so short transmit bursts are undersampled.</figcaption>
+<figcaption><span class="lbl">FIG. 9</span> — Power telemetry, BEAR-13 (top) and BEAR-14 (bottom). Current is sampled about every 70 s, so short transmit bursts are undersampled.</figcaption>
 </figure>
 
 <h3 id="s6-4"><span class="no">6.4</span>Temperature and pressure</h3>
-<p>The avionics bay, read from the MS5611 die, fell to −1.6 °C at 18.7 km (<a href="#fig-8">FIG. 8a</a>). The barometer tracked the standard atmosphere over three orders of magnitude of pressure (<a href="#fig-8">FIG. 8b</a>). Below 10 km its ISA altitude read low by a mean of 248 m. Above 20 km it read high, by up to 1.7 km. That's the tropical atmosphere, which is warmer than ISA in the troposphere and colder around the tropopause, not the sensor. Separately, pressure goes out as integer hectopascals, which is a 570 m altitude step at 30 km.</p>
+<p>The avionics bay, read from the MS5611 die, fell to −1.6 °C at 18.7 km (<a href="#fig-10">FIG. 10a</a>). The barometer tracked the standard atmosphere over three orders of magnitude of pressure (<a href="#fig-10">FIG. 10b</a>). Below 10 km its ISA altitude read low by a mean of 248 m. Above 20 km it read high, by up to 1.7 km. That's the tropical atmosphere, which is warmer than ISA in the troposphere and colder around the tropopause, not the sensor. Separately, pressure goes out as integer hectopascals, which is a 570 m altitude step at 30 km.</p>
 
-<figure class="fig" id="fig-8">
+<figure class="fig" id="fig-10">
 <div class="fig-grid" style="--min: 240px; --h: auto; grid-template-columns: minmax(0, 1fr) minmax(0, 1.8fr); align-items: start">
 <figure class="sub"><a href="temp-vs-alt.svg"><img class="plot" src="temp-vs-alt.svg" alt="Bay temperature against altitude on ascent for both flights" loading="lazy" style="height: auto"></a><figcaption><b>(a)</b> Bay temperature against altitude, ascent.</figcaption></figure>
 <figure class="sub"><a href="baro.svg"><img class="plot" src="baro.svg" alt="Measured pressure and pressure-altitude error against GNSS altitude" loading="lazy" style="height: auto"></a><figcaption><b>(b)</b> Pressure and pressure-altitude error.</figcaption></figure>
 </div>
-<figcaption><span class="lbl">FIG. 8</span> — Thermal and barometric performance.</figcaption>
+<figcaption><span class="lbl">FIG. 10</span> — Thermal and barometric performance.</figcaption>
 </figure>
 
 <h3 id="s6-5"><span class="no">6.5</span>Telemetry link</h3>
-<p>Frame counters show the APRS network recovered 96.9% of BEAR-13's frames between launch and last fix, and it never lost more than one in a row (<a href="#fig-9">FIG. 9</a>). Through the whole flight the GNSS held lock next to the 1.5 W VTx, so the band-pass filter, CPWG routing and bead filtering did their job.</p>
+<p>Frame counters show the APRS network recovered 96.9% of BEAR-13's frames between launch and last fix, and it never lost more than one in a row (<a href="#fig-11">FIG. 11</a>). Through the whole flight the GNSS held lock next to the 1.5 W VTx, so the band-pass filter, CPWG routing and bead filtering did their job.</p>
 
-<figure class="fig" id="fig-9">
+<figure class="fig" id="fig-11">
 <div class="narrow" style="max-width: 820px"><a href="packets.svg"><img src="packets.svg" alt="Lost frames before each received frame for both flights" loading="lazy"></a></div>
-<figcaption><span class="lbl">FIG. 9</span> — Lost frames preceding each received frame, from gaps in the on-board counter.</figcaption>
+<figcaption><span class="lbl">FIG. 11</span> — Lost frames preceding each received frame, from gaps in the on-board counter.</figcaption>
 </figure>
 
 <!-- ============================================================ 7 -->
 <h2 id="s7"><span class="no">7</span>Why the video died at 46 km</h2>
-<p>We saw the video degrade at a slant range of about 39 km and lose it completely at about 46 km. Recomputing the geometry from the launch site (<a href="#fig-10">FIG. 10</a>), the payload crossed 39 km at 22.6 km altitude and 35° elevation, and 46 km at 23.6 km altitude and 31° elevation, at 01:32 UTC. The time matches the post-flight spreadsheet. Its ≈60° elevation doesn't: a payload 23.6 km up and 46 km away has to be below 31°. That's the AssistNow seed being used as the origin (<a href="#s4">§4.3</a>).</p>
+<p>We saw the video degrade at a slant range of about 39 km and lose it completely at about 46 km. Recomputing the geometry from the launch site (<a href="#fig-12">FIG. 12</a>), the payload crossed 39 km at 22.6 km altitude and 35° elevation, and 46 km at 23.6 km altitude and 31° elevation, at 01:32 UTC. The time matches the post-flight spreadsheet. Its ≈60° elevation doesn't: a payload 23.6 km up and 46 km away has to be below 31°. That's the AssistNow seed being used as the origin (<a href="#s4">§4.3</a>).</p>
 
-<figure class="fig" id="fig-10">
+<figure class="fig" id="fig-12">
 <div class="narrow" style="max-width: 820px"><a href="f13-geometry.svg"><img src="f13-geometry.svg" alt="BEAR-13 slant range and elevation against time with video degradation and loss marked" loading="lazy"></a></div>
-<figcaption><span class="lbl">FIG. 10</span> — BEAR-13 slant range and elevation from the launch site, with the reported degradation and loss points.</figcaption>
+<figcaption><span class="lbl">FIG. 12</span> — BEAR-13 slant range and elevation from the launch site, with the reported degradation and loss points.</figcaption>
 </figure>
 
 <p>The pre-flight estimate used 117 dB of free-space loss at 50 km. Friis at 1280 MHz gives</p>
 <div class="eq" id="eq-2">\[ L_\mathrm{fs} = 20\log_{10} d_\mathrm{km} + 20\log_{10} f_\mathrm{MHz} + 32.44 = 128.6\,\mathrm{dB}\quad (d = 50\,\mathrm{km}) \tag{2} \]</div>
 <p>so the estimate was 11.6 dB optimistic. Redoing the budget with \(P_t = 31.8\,\mathrm{dBm}\) (1.5 W), \(G_t = 1\,\mathrm{dBi}\), \(G_r = 10\,\mathrm{dBi}\) and 3 dB of miscellaneous cable and pointing loss:</p>
 <div class="eq" id="eq-3">\[ P_r(46\,\mathrm{km}) = 31.8 + 1 + 10 - 127.8 - 3 = -88.1\,\mathrm{dBm} \tag{3} \]</div>
-<p>The noise floor in 20 MHz with an assumed 4 dB receiver noise figure is \(-174 + 10\log_{10}(20\,\mathrm{MHz}) + NF = -97.0\,\mathrm{dBm}\), so the carrier-to-noise ratio at 46 km is 8.9 dB. That's right at the FM demodulator threshold of about 8–10 dB, below which analogue video breaks up abruptly. At 39 km the predicted CNR is 10.3 dB, just above threshold, which is where the picture started to go (<a href="#fig-11">FIG. 11</a>).</p>
+<p>The noise floor in 20 MHz with an assumed 4 dB receiver noise figure is \(-174 + 10\log_{10}(20\,\mathrm{MHz}) + NF = -97.0\,\mathrm{dBm}\), so the carrier-to-noise ratio at 46 km is 8.9 dB. That's right at the FM demodulator threshold of about 8–10 dB, below which analogue video breaks up abruptly. At 39 km the predicted CNR is 10.3 dB, just above threshold, which is where the picture started to go (<a href="#fig-13">FIG. 13</a>).</p>
 
-<figure class="fig" id="fig-11">
+<figure class="fig" id="fig-13">
 <div class="narrow" style="max-width: 820px"><a href="link-budget.svg"><img src="link-budget.svg" alt="Predicted carrier-to-noise ratio against slant range, crossing the FM threshold near 46 km" loading="lazy"></a></div>
-<figcaption><span class="lbl">FIG. 11</span> — Predicted CNR of the 1.28 GHz video link against slant range.</figcaption>
+<figcaption><span class="lbl">FIG. 13</span> — Predicted CNR of the 1.28 GHz video link against slant range.</figcaption>
 </figure>
 
 <p>So the link ran out of margin, and nothing outside the budget is needed to explain it. The assumed losses are uncertain in their own right: a payload antenna 3–10 dB down off boresight at 30° elevation, or RHCP-to-linear polarisation loss, would move the crossing in to 15–33 km. That the observed loss fits the 3 dB case suggests the RHCP antenna kept pattern and polarisation losses small. Interference from the rotator's motor drivers was suspected at the time but never measured, so its contribution can't be established either way. For a repeat flight, in order of leverage:</p>
@@ -363,13 +376,13 @@
 <!-- ============================================================ appendix -->
 <h2 id="appA"><span class="no">A</span>Appendix: schematic sheets</h2>
 <p>Full schematics are in the repository <span class="cite">[<a href="#ref-1">1</a>]</span>. Sheets are vector; tap one to open it full size.</p>
-<figure class="fig" id="fig-12">
+<figure class="fig" id="fig-14">
 <div class="frame"><a href="sch-comms-radio.svg"><img src="sch-comms-radio.svg" alt="Schematic sheet: SA818 VHF transceiver, output filter and receive-audio bias network" loading="lazy"></a></div>
-<figcaption><span class="lbl">FIG. 12</span> — SA818 VHF transceiver, output filter and receive-audio bias network.</figcaption>
+<figcaption><span class="lbl">FIG. 14</span> — SA818 VHF transceiver, output filter and receive-audio bias network.</figcaption>
 </figure>
-<figure class="fig" id="fig-13">
+<figure class="fig" id="fig-15">
 <div class="frame"><a href="sch-comms-gnss.svg"><img src="sch-comms-gnss.svg" alt="Schematic sheet: GNSS with band-pass filter and 50 ohm feed, barometer, thermocouple interface and MARG sensors" loading="lazy"></a></div>
-<figcaption><span class="lbl">FIG. 13</span> — GNSS with band-pass filter and 50 Ω feed, MS5611 barometer, thermocouple interface and MARG sensors.</figcaption>
+<figcaption><span class="lbl">FIG. 15</span> — GNSS with band-pass filter and 50 Ω feed, MS5611 barometer, thermocouple interface and MARG sensors.</figcaption>
 </figure>
 
 <h2 id="rev"><span class="no">Δ</span>Revisions</h2>
