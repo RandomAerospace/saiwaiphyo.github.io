@@ -196,13 +196,13 @@
 <h2 id="s5"><span class="no">5</span>VTx bench test and antenna choice</h2>
 
 <h3><span class="no">5.1</span>RF power meter test</h3>
-<p>Before flight I measured the VTx output on an RF power meter through 120 dB of fixed attenuation: two 30 dB and three 20 dB attenuators in series. I ran it for 32 s each from a 3S (11.1 V) and a 2S (7.4 V) supply (<a href="#fig-4">FIG. 4</a>). The meter averaged −8.20 dBm on 3S and −10.69 dBm on 2S: 2.5 dB less power, or 56% of the 3S output. The 2S trace also has dips down to −12.7 dBm that the 3S trace doesn't. So the transmitter is undervolted on 2S, and the flight pack was 3S. The bench numbers looked fine. The flight did not match, and <a href="#s7">§7</a> works out why.</p>
+<p>Before flight I measured the VTx output on an RF power meter through 40 dB of fixed attenuation: two 20 dB pads in series. I ran it for 32 s each from a 3S (11.1 V) and a 2S (7.4 V) supply (<a href="#fig-4">FIG. 4</a>). The meter averaged −8.20 dBm on 3S and −10.69 dBm on 2S. Adding back the 40 dB, that is 31.8 dBm (1.51 W) on 3S, right on the 1.5 W rating, and 29.3 dBm (0.85 W) on 2S: 2.5 dB less, or 56% of the 3S output. The 2S trace also has dips down to −12.7 dBm that the 3S trace doesn't. So the transmitter is undervolted on 2S, and the flight pack was 3S. The bench numbers looked fine. The flight did not match, and <a href="#s7">§7</a> works out why.</p>
 <figure class="fig" id="fig-4">
 <div class="fig-grid" style="--h: 360px; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: end">
 <figure class="sub"><a href="vtx-power-meter.jpg"><img src="vtx-power-meter.jpg" alt="RF power meter traces over 32 seconds: 3S supply averaging minus 8.2 dBm, 2S supply averaging minus 10.7 dBm with dips" width="472" height="532" loading="lazy"></a><figcaption><b>(a)</b> Power vs time, 3S (top) and 2S (bottom).</figcaption></figure>
 <figure class="sub"><a href="vtx-bench-monitor.jpg"><img src="vtx-bench-monitor.jpg" alt="Bench monitor showing the ArduCam OSD boot screen received over the VTx link" width="380" height="202" loading="lazy"></a><figcaption><b>(b)</b> Video received on the bench monitor.</figcaption></figure>
 </div>
-<figcaption><span class="lbl">FIG. 4</span> — VTx power-meter test. Averages: −8.20 dBm (3S, 11.1 V) and −10.69 dBm (2S, 7.4 V).</figcaption>
+<figcaption><span class="lbl">FIG. 4</span> — VTx power-meter test. Averages behind 40 dB of attenuation: −8.20 dBm (3S, 11.1 V) and −10.69 dBm (2S, 7.4 V), i.e. 1.51 W and 0.85 W at the VTx.</figcaption>
 </figure>
 
 <figure class="fig" id="fig-5">
