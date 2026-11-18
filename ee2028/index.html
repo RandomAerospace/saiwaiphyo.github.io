@@ -92,6 +92,27 @@ label.btn { cursor: pointer; }
 .bk-msg { font-size: 12.5px; min-height: 1.2em; }
 .bk-msg.ok { color: var(--ok); } .bk-msg.bad { color: var(--bad); }
 .ex-meta { font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+.tut-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; position: sticky; top: -18px; background: var(--panel); padding: 8px 0; z-index: 1; border-bottom: 1px solid var(--line); }
+.tut-src { font-size: 12px; color: var(--muted); margin: -2px 0 8px; }
+.tut-src.mine { color: var(--hot); }
+.tq { display: grid; grid-template-columns: 30px 1fr; gap: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px 8px 8px; margin-bottom: 8px; }
+.tq.seen { border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+.tq-n { font: 600 12px var(--f-mono); color: var(--faint); padding-top: 2px; }
+.tq.seen .tq-n { color: var(--ok); }
+.tq-body { min-width: 0; font-size: 13.5px; }
+.tq-body p { margin: 0 0 8px; }
+.tq-body ul, .tq-body ol { margin: 0 0 8px; padding-left: 20px; }
+.tq-sol { border-top: 1px dashed var(--line); margin-top: 8px; padding-top: 8px; }
+.tq-label { font: 600 10.5px var(--f-body); letter-spacing: .06em; text-transform: uppercase; color: var(--ok); margin-bottom: 6px; }
+.tut-src.mine + .tq .tq-label, .tq-label:has(+ *) { }
+.bench { font-size: 12px; color: var(--muted); border-left: 3px solid var(--ok); padding-left: 8px; }
+.tutfig { margin: 6px 0 10px; }
+.tutfig img { display: block; max-width: 100%; height: auto; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 4px; }
+.tutfig figcaption { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+svg.wave { width: 100%; max-width: 560px; height: auto; display: block; margin: 4px 0 8px; font: 11px var(--f-mono); }
+svg.wave text { fill: var(--muted); }
+svg.wave .grid { stroke: var(--line); stroke-dasharray: 2 3; }
+svg.wave .sig { fill: none; stroke: var(--accent); stroke-width: 2.5; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
 .seg button { background: transparent; border: 0; padding: 5px 10px; font-size: 12.5px; color: var(--muted); }
 .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
@@ -111,7 +132,7 @@ select { background: var(--panel); border: 1px solid var(--line); border-radius:
 
 .pane { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
 .pane-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--line); flex: none; }
-.pane-tabs button { flex: 1; background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 10px 8px 8px; font-size: 13px; color: var(--muted); font-weight: 500; }
+.pane-tabs button { flex: 1; background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 10px 4px 8px; font-size: 12.5px; color: var(--muted); font-weight: 500; }
 .pane-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
 .pane-body { overflow-y: auto; padding: 18px 20px 40px; flex: 1; min-height: 0; }
 .unit-kicker { font-family: var(--f-mono); font-size: 11.5px; color: var(--accent); letter-spacing: .04em; text-transform: uppercase; }
@@ -332,7 +353,8 @@ table.mem td .sub { display: block; color: var(--faint); font-size: 10.5px; whit
   <section class="pane" aria-label="Course">
     <div class="pane-tabs" role="tablist">
       <button id="tabLesson" role="tab" aria-selected="true">Lesson</button>
-      <button id="tabRef" role="tab" aria-selected="false">Syntax reference</button>
+      
+      <button id="tabRef" role="tab" aria-selected="false">Syntax</button>
       <button id="tabProg" role="tab" aria-selected="false">Progress</button>
     </div>
     <div class="pane-body" id="paneBody"></div>
@@ -567,6 +589,7 @@ function parseOperand(tok) {
  * ==================================================================== */
 function assemble(src, opts = {}) {
   const o = Object.assign({ codeBase: 0x08000000, ramBase: 0x20000000, wordBase: null, memModel: 'lecture', spInit: 0x20008000 }, opts);
+  if (o.flat === undefined) o.flat = o.memModel === 'lecture';
   const errors = [], warnings = [];
   const err = (line, msg) => errors.push({ line, msg });
   const warn = (line, msg) => warnings.push({ line, msg });
@@ -583,13 +606,14 @@ function assemble(src, opts = {}) {
   let loc = o.codeBase, wloc = o.wordBase != null ? o.wordBase : null, rloc = o.ramBase;
   let pending = [];
   let ended = false;
+  const funcSyms = new Set(); let thumbNext = false;
 
   function defineLabel(name, addr, kind, line) {
     if (labels[name] || equs[name]) { err(line, `"${name}" is defined twice`); return; }
     if (regNum(name) >= 0) { err(line, `"${name}" is a register name and cannot be a label`); return; }
     labels[name] = { addr, kind, line };
   }
-  function flushPending(addr, kind) { for (const p of pending) defineLabel(p.name, addr, kind, p.line); pending = []; }
+  function flushPending(addr, kind) { for (const p of pending) { defineLabel(p.name, addr, kind, p.line); if (kind === 'code' && thumbNext) funcSyms.add(p.name); } if (kind === 'code' && pending.length) thumbNext = false; pending = []; }
 
   for (let li = 0; li < lines.length && !ended; li++) {
     const lineNo = li + 1;
@@ -632,6 +656,11 @@ function assemble(src, opts = {}) {
         lcomms.push({ name: parts[0], addr: rloc, size, line: lineNo });
         rloc += size;
         if (pending.length) { warn(lineNo, 'a label in front of .lcomm is ignored — .lcomm names its own symbol'); pending = []; }
+      } else if (d === '.thumb_func') {
+        thumbNext = true;
+      } else if (d === '.type') {
+        const m2 = /^([A-Za-z_.$][\w.$]*)\s*,\s*[%@#]function\s*$/.exec(args.trim());
+        if (m2) funcSyms.add(m2[1]);
       } else if (BOILERPLATE.has(d)) {
         if (d === '.end') ended = true;
         if (d === '.section' && args && !/^\.text/.test(args.trim())) warn(lineNo, `section "${args.trim()}" ignored — everything is placed as in .text`);
@@ -650,6 +679,7 @@ function assemble(src, opts = {}) {
   // trailing labels -> end of code
   flushPending(loc, 'code');
 
+  for (const n of funcSyms) if (labels[n]) labels[n].thumb = true;
   const codeEnd = loc;
   const poolBase = (Math.max(loc, 0) + 3) & ~3;
 
@@ -737,9 +767,11 @@ function assemble(src, opts = {}) {
 
   // regions
   const regions = [];
-  regions.push({ name: o.wordBase != null ? 'code' : 'code + .word', start: o.codeBase, end: Math.max(poolEnd, o.codeBase + 4), flash: true });
+  // STM32L4 flash is 1 MB from 0x08000000; elsewhere (lecture layouts) map just the program image
+  regions.push({ name: o.wordBase != null ? 'code' : 'code + .word', start: o.codeBase, end: o.codeBase === 0x08000000 ? Math.max(poolEnd, 0x08100000) : Math.max(poolEnd, o.codeBase + 4), flash: true });
   if (o.wordBase != null) regions.push({ name: '.word data', start: o.wordBase, end: Math.max(wloc, o.wordBase + 4), flash: true });
   regions.push({ name: 'SRAM', start: o.ramBase, end: o.ramBase + RAM_SIZE, flash: false });
+  regions.push({ name: 'peripherals', start: 0x40000000, end: 0x60000000, flash: false, periph: true });
 
   const entryName = labels.asm_func ? 'asm_func' : labels.main ? 'main' : null;
   const entry = entryName ? labels[entryName].addr : (instrs[0] ? instrs[0].addr : o.codeBase);
@@ -827,6 +859,8 @@ function decode(it, ctx) {
         return { type: 'reg', rm, sh: { type: sh.type, amt: a } };
       }
     }
+    if (list[0] && list[0].k === 'mem') { err(line, `${ins.base} cannot read memory. ARM is load/store: only LDR/STR take [ ] operands — LDR the value into a register first`); return null; }
+    if (ins.base === 'MOV' || ins.base === 'MVN') { if (list.length > 1 && list[1].k === 'reg') { err(line, `${ins.base} takes one source (Rd, Op2). "${ins.base} Rd, Rn, Rm" is not a valid form — to combine two registers use ADD/ORR/…`); return null; } }
     err(line, 'Operand2 must be #imm, Rm, or Rm with a shift (e.g. R2, LSL #4)'); return null;
   };
 
@@ -982,6 +1016,7 @@ function decode(it, ctx) {
     case 'mem': {
       const isL = ins.base === 'LDR';
       if (ops.length < 2 || ops.length > 3) return fail(`${ins.base} takes "Rt, [Rn {, #offset}]"${isL ? ', "Rt, LABEL" or "Rt, =value"' : ''}`);
+      if (ops[0] && ops[0].k !== 'reg') return fail(`the first operand of ${ins.base} is the register being ${isL ? 'loaded' : 'stored'} — e.g. ${ins.base} R2, [Rx]${ops[0].k === 'sym' || ops[0].k === 'lit' ? '. Memory always goes on the right, in [ ]' : ''}`);
       const rt = needReg(ops[0], 'transfer register'); if (rt === null) return ins;
       ins.rt = rt;
       if (rt === 13) return fail(`SP cannot be the transfer register of ${ins.base}`);
@@ -992,8 +1027,13 @@ function decode(it, ctx) {
         if (ops.length !== 2) return fail('LDR Rt, =value takes no further operands');
         if (rt === 15) return fail('LDR PC, =... is outside the course model');
         let v = null, desc;
-        const e = a.expr;
-        if (ctx.labels[e]) { v = ctx.labels[e].addr; desc = `address of ${e}`; }
+        let e = a.expr;
+        if (e.startsWith('#')) { e = e.slice(1).trim(); warn(line, 'GNU as accepts "=#value" (as on the EV slide), but the course form is LDR Rd, =value with no #'); }
+        if (ctx.labels[e] && ctx.labels[e].kind === 'code' && ctx.labels[e].thumb) { v = ctx.labels[e].addr + 1; desc = `address of ${e}, +1 for the Thumb bit (.thumb_func)`; }
+        else if (ctx.labels[e]) {
+          v = ctx.labels[e].addr; desc = `address of ${e}`;
+          if (ctx.labels[e].kind === 'code' && e !== 'asm_func' && e !== 'main') warn(line, `${e} labels code. If you BX/BLX to it, the Cortex-M4 needs bit 0 of the address set (Thumb state): put .thumb_func on the line before "${e}:" (or .type ${e}, %function), otherwise the branch faults on the real chip`);
+        }
         else if (ctx.equs[e]) { v = evalImm(e); desc = `.equ ${e} = ${v}`; }
         else { v = evalImm(e); desc = `constant ${e}`; }
         if (v === null) return ins;
@@ -1061,6 +1101,7 @@ function decode(it, ctx) {
     }
     case 'bx': {
       if (!nOps(1, 'one register (e.g. BX LR)')) return ins;
+      if (ops[0].k === 'sym') return fail(ins.base === 'BLX' ? `BLX label does not exist on ARMv7-M: that form switches to ARM state, which the Cortex-M4 does not have. Use BL ${ops[0].expr}, or load the address and BLX Rm` : `BX takes a register (BX LR). To jump to a label use B ${ops[0].expr}`);
       const rm = needReg(ops[0], 'target'); if (rm === null) return ins;
       if (rm === 15) return fail(`${ins.base} PC is not permitted`);
       ins.rm = rm; ins.isBranch = true;
@@ -1150,7 +1191,8 @@ class Machine {
     this.r[15] = p.entry >>> 0;
     if (init.regs) for (const [k, v] of Object.entries(init.regs)) { const n = regNum(k); if (n >= 0 && n !== 15) this.r[n] = v >>> 0; }
     if (init.flags) Object.assign(this.f, init.flags);
-    if (init.mem) for (const [a, v] of Object.entries(init.mem)) this.write32(+a, v >>> 0, true);
+    if (init.mem) for (const [a, v] of Object.entries(init.mem)) [].concat(v).forEach((x, k) => this.write32(+a + 4 * k, x >>> 0, true));
+    this._unmapped = null;
     if (init.arrays) for (const arr of init.arrays) arr.values.forEach((v, k) => this.write32(arr.addr + 4 * k, v >>> 0, true));
     this.init = { r: Uint32Array.from(this.r) };
     this.halted = false; this.haltReason = ''; this.haltKind = '';
@@ -1164,6 +1206,8 @@ class Machine {
   read32(a) {
     a = a >>> 0;
     const R = this.prog.regions.find((Q) => a >= Q.start && a + 4 <= Q.end);
+    if (!R || R.periph) (this.touched = this.touched || new Set()).add(a);
+    if (!R && this.prog.opts.flat) { this.noteUnmapped(a, 'read'); let v = 0; for (let k = 0; k < 4; k++) v |= (this.mem.get(a + k) || 0) << (8 * k); return v >>> 0; }
     if (!R) throw new Fault(`bus fault: read from ${hex(a)} — no memory is mapped there. ${a < 0x10000 ? 'This looks like a small number used as a pointer: did you load the value (LDR Rx, LABEL) where you needed the address (LDR Rx, =LABEL)?' : 'Check the base register holds a valid address.'}`);
     let v = 0; for (let k = 0; k < 4; k++) v |= (this.mem.get(a + k) || 0) << (8 * k);
     return v >>> 0;
@@ -1171,12 +1215,18 @@ class Machine {
   write32(a, v, force) {
     a = a >>> 0;
     const R = this.prog.regions.find((Q) => a >= Q.start && a + 4 <= Q.end);
-    if (!R && !force) throw new Fault(`bus fault: write to ${hex(a)} — no memory is mapped there. ${a < 0x10000 ? 'Did you use a value as a pointer? STR needs the address in the base register (LDR Rx, =VAR).' : ''}`);
+    if ((!R || R.periph) && !force) (this.touched = this.touched || new Set()).add(a);
+    if (!R && !force && this.prog.opts.flat) this.noteUnmapped(a, 'write');
+    else if (!R && !force) throw new Fault(`bus fault: write to ${hex(a)} — no memory is mapped there. ${a < 0x10000 ? 'Did you use a value as a pointer? STR needs the address in the base register (LDR Rx, =VAR).' : ''}`);
     if (R && R.flash && !force && this.prog.opts.memModel === 'stm32') throw new Fault(`write to ${hex(a)} is in flash (read-only on the STM32). .word data lives in flash with the code; use .lcomm for variables you need to write.`);
     const old = [];
     for (let k = 0; k < 4; k++) { old.push(this.mem.get(a + k)); this.mem.set(a + k, (v >>> (8 * k)) & 0xFF); }
     if (this._wlog) this._wlog.push({ a, old });
     return R;
+  }
+  noteUnmapped(a, kind) {
+    if (this._unmapped) return;
+    this._unmapped = `note: ${hex(a)} is outside the program's code, data and SRAM regions. The lecture model treats memory as flat, so the ${kind} goes ahead; on the STM32 (or with Memory set to STM32) it would bus-fault.${a < 0x400 ? ' Small addresses like this usually mean a value was used as a pointer.' : ''}`;
   }
   snapshot() { return { r: Uint32Array.from(this.r), f: Object.assign({}, this.f), halted: this.halted, haltReason: this.haltReason, haltKind: this.haltKind, steps: this.steps, writes: [], callDepth: this.callDepth, lastLog: this.lastLog, minSP: this.minSP }; }
   back() {
@@ -1439,7 +1489,9 @@ class Machine {
         break;
       }
       case 'BX': case 'BLX': {
-        const t = r[ins.rm] & ~1;
+        const raw = r[ins.rm] >>> 0;
+        const t = raw & ~1;
+        if (ins.rm !== 14 && (raw & 1) === 0 && p.byAddr.has(raw)) throw new Fault(`UsageFault (INVSTATE): ${b} ${RN[ins.rm]} jumps to ${hex(raw)} with bit 0 clear, which would switch to ARM state. The Cortex-M4 only runs Thumb code, so function addresses must be odd. Mark the target with .thumb_func on the line before its label (or .type name, %function); LDR Rx, =name then sets bit 0 for you.`);
         if (b === 'BLX') { setR(14, next); parts.push(`LR ← return address ${hex(next)}`); this.callDepth++; }
         parts.push(`PC ← ${RN[ins.rm]} = ${hex(t)}${t === EXIT_ADDR ? ' (return to the C caller)' : p.symbolsByAddr[t] ? ' (' + p.symbolsByAddr[t].join('/') + ')' : ''}`);
         if (b === 'BX' && ins.rm === 14 && t !== EXIT_ADDR) this.callDepth = Math.max(0, this.callDepth - 1);
@@ -1478,6 +1530,7 @@ class Machine {
     return this.finish(ins, pc, parts, before, fBefore);
   }
   finish(ins, pc, parts, before, fBefore, skipped) {
+    if (this._unmapped) { parts.push(this._unmapped); this._unmapped = null; }
     const changes = [];
     for (let k = 0; k < 15; k++) if (before[k] !== this.r[k]) changes.push(k);
     const flagsChanged = ['N', 'Z', 'C', 'V'].filter((k) => fBefore[k] !== this.f[k]);
@@ -1526,7 +1579,9 @@ function makeTester(prog, ex) {
   t.init = (args = [], extra = {}) => {
     const p = placeArgs(args);
     const init = { regs: p.regs, arrays: p.arrays, mem: {} };
-    if (extra.memLabels) for (const [k, v] of Object.entries(extra.memLabels)) if (prog.labels[k]) init.mem[prog.labels[k].addr] = v;
+    if (extra.memLabels) for (const [k, v] of Object.entries(extra.memLabels)) if (prog.labels[k]) init.mem[prog.labels[k].addr] = v;   // v may be an array of words
+    if (extra.mem) Object.assign(init.mem, extra.mem);   // raw addresses, e.g. peripheral registers
+    if (extra.regs) Object.assign(init.regs, extra.regs);
     if (extra.flags) init.flags = extra.flags;
     return init;
   };
@@ -1535,10 +1590,12 @@ function makeTester(prog, ex) {
     const m = new E.Machine(prog, init);
     m.run(extra.max || 300000);
     m.arrays = init.arrays;
+    if (api.onRun) api.onRun({ prog, init, m, extra, ex });   // hook used by the toolchain benchmark
     return m;
   };
   t.word = (m, label, k = 0) => prog.labels[label] ? m.read32(prog.labels[label].addr + 4 * k) : undefined;
   t.arr = (m, i) => m.arrays[i].values.map((_, k) => m.read32(m.arrays[i].addr + 4 * k) | 0);
+  t.wordsAt = (label) => { const L = prog.labels[label]; if (!L) return 0; let n = 0; while (prog.words.some((w) => w.addr === L.addr + 4 * n) && (n === 0 || !prog.symbolsByAddr[L.addr + 4 * n])) n++; return n; };
   t.has = (base) => prog.instrs.some((i) => i.origBase === base || i.base === base);
   t.call = (args, u) => `${fname}(${args.map((a) => fmtArg(a, u)).join(', ')})`;
 
@@ -1554,10 +1611,10 @@ function makeTester(prog, ex) {
   t.fn = (cases, ref, opts = {}) => cases.map((c0) => {
     const c = Array.isArray(c0) ? { args: c0 } : c0;
     const m = t.run(c.args, c);
-    const label = t.call(c.args, opts.u) + (c.memLabels ? ' with ' + Object.entries(c.memLabels).map(([k, v]) => `${k}=${E.hex(v)}`).join(', ') : '');
+    const label = (c.label || t.call(c.args, opts.u)) + (c.memLabels && !c.label ? ' with ' + Object.entries(c.memLabels).map(([k, v]) => `${k}=${Array.isArray(v) ? '[' + v.join(', ') + ']' : E.hex(v)}`).join(', ') : '');
     const row = { label, debug: c };
     const prob = exitProblem(m);
-    if (prob && !opts.allowHalt) return Object.assign(row, { ok: false, detail: prob });
+    if (prob && !(opts.allowHalt && m.haltKind === 'halt')) return Object.assign(row, { ok: false, detail: prob });
     let exp = ref(...c.args.map((a) => Array.isArray(a) ? a.slice() : a), m, c);
     if (typeof exp === 'number') exp = { R0: exp };
     const bad = [], good = [];
@@ -1580,6 +1637,12 @@ function makeTester(prog, ex) {
           if (gotA.some((x, j) => (x >>> 0) !== (wants[j] >>> 0))) bad.push(`expected ${lab} = ${wants.map((x) => x | 0).join(', ')}, got ${gotA.join(', ')}`);
           else good.push(`${lab} = ${gotA.join(', ')}`);
         }
+      } else if (k === 'mem') {
+        for (const [a, want] of Object.entries(v)) {
+          const got = m.read32(+a) >>> 0;
+          if (got !== (want >>> 0)) bad.push(`expected [${E.hex(+a)}] = ${E.hex(want)}, got ${E.hex(got)}`);
+          else good.push(`[${E.hex(+a)}] = ${E.hex(got)}`);
+        }
       } else if (k === 'arrays') {
         for (const [i, want] of Object.entries(v)) {
           const gotA = t.arr(m, +i);
@@ -1600,7 +1663,7 @@ function makeTester(prog, ex) {
 }
 
 function checkExercise(ex, src) {
-  const prog = E.assemble(src, ex.opts || {});
+  const prog = E.assemble(src, Object.assign({}, ex.opts || {}, { flat: false }));   // checks use strict memory so bad pointers are explained
   if (!prog.ok) return { prog, rows: [{ ok: false, label: 'assembles', detail: `${prog.errors.length} assembler error(s) — first: line ${prog.errors[0].line}: ${prog.errors[0].msg}` }], pass: false };
   if (!ex.noFunc && !prog.labels[ex.fname || 'asm_func']) return { prog, rows: [{ ok: false, label: 'entry point', detail: `define the label ${ex.fname || 'asm_func'}: at the start of your function` }], pass: false };
   const t = makeTester(prog, ex);
@@ -2682,6 +2745,7 @@ L.push({
 <tr><td>LR</td><td>holds the return address; save it before any BL</td></tr>
 </table>
 <p>From this unit on, the checker enforces AAPCS: a changed R4–R11 or an unbalanced SP on return fails the test. Earlier exercises (and the lecture examples) used R4–R6 freely. A real C caller could have been holding live values there.</p>
+<div class="note"><b>Function pointers and the Thumb bit.</b> The Cortex-M4 runs only Thumb code, and BX/BLX use bit 0 of the target address to choose the state. A function address you load yourself must therefore be odd: put <code>.thumb_func</code> on the line before the label, and <code>LDR Rx, =label</code> includes the +1. BL and BX LR handle this automatically. (The emulator shows LR without bit 0, as the lecture notes do.)</div>
 <div class="note">AAPCS also asks for SP to be 8-byte aligned at every call. That is why compilers push an even number of registers, e.g. <code>{R4, LR}</code> instead of just <code>{LR}</code>.</div>
 <pre class="asm" data-init="R0=5">asm_func:
     PUSH {R4, LR}
@@ -2703,11 +2767,11 @@ twice:
     },
     {
       id: 'u15e2', title: 'Call through a function pointer',
-      prompt: '<p>If <code>sel == 0</code> call <code>double_it(x)</code>, otherwise call <code>negate(x)</code>. Load the chosen function\u2019s address into a register and call it with <code>BLX</code>:</p><pre class="c">int (*f)(int) = sel ? negate : double_it;\nreturn f(x);</pre>',
-      starter: full('@ int asm_func(int x, int sel)\nasm_func:\n    @ your code here\n\n    BX LR\n\ndouble_it:\n    ADD R0, R0, R0\n    BX  LR\nnegate:\n    MVN R0, R0\n    ADD R0, R0, #1\n    BX  LR\n'),
-      solution: full('@ int asm_func(int x, int sel)\nasm_func:\n    PUSH  {R4, LR}\n    CMP   R1, #0\n    ITE   EQ\n    LDREQ R2, =double_it    @ R2 = address of function\n    LDRNE R2, =negate\n    BLX   R2\n    POP   {R4, PC}\n\ndouble_it:\n    ADD R0, R0, R0\n    BX  LR\nnegate:\n    MVN R0, R0\n    ADD R0, R0, #1\n    BX  LR\n'),
+      prompt: '<p>If <code>sel == 0</code> call <code>double_it(x)</code>, otherwise call <code>negate(x)</code>. Load the chosen function\u2019s address into a register and call it with <code>BLX</code>. The helpers are marked <code>.thumb_func</code>: on the Cortex-M4 a function address must have bit 0 set (Thumb state), and that directive makes <code>LDR Rx, =name</code> set it.</p><pre class="c">int (*f)(int) = sel ? negate : double_it;\nreturn f(x);</pre>',
+      starter: full('@ int asm_func(int x, int sel)\nasm_func:\n    @ your code here\n\n    BX LR\n\n    .thumb_func\ndouble_it:\n    ADD R0, R0, R0\n    BX  LR\n    .thumb_func\nnegate:\n    MVN R0, R0\n    ADD R0, R0, #1\n    BX  LR\n'),
+      solution: full('@ int asm_func(int x, int sel)\nasm_func:\n    PUSH  {R4, LR}\n    CMP   R1, #0\n    ITE   EQ\n    LDREQ R2, =double_it    @ R2 = address of function\n    LDRNE R2, =negate\n    BLX   R2\n    POP   {R4, PC}\n\n    .thumb_func\ndouble_it:\n    ADD R0, R0, R0\n    BX  LR\n    .thumb_func\nnegate:\n    MVN R0, R0\n    ADD R0, R0, #1\n    BX  LR\n'),
       hints: ['LDR R2, =label loads a function\u2019s address just like a data label\u2019s.', 'BLX also overwrites LR, so save LR first.'],
-      check: (t) => [t.uses('BLX'), t.fn([[21, 0], [21, 1], [-8, 0], [-8, 5]], (x, s) => s ? -x : 2 * x, { aapcs: true })]
+      check: (t) => [t.uses('BLX'), t.req(['double_it', 'negate'].every((n) => t.prog.labels[n] && t.prog.labels[n].thumb), 'helpers marked .thumb_func', 'keep .thumb_func on the line before double_it: and negate: (BLX to an even address faults on the real chip)'), t.fn([[21, 0], [21, 1], [-8, 0], [-8, 5]], (x, s) => s ? -x : 2 * x, { aapcs: true })]
     },
     {
       id: 'u15e3', title: 'Debug: the function that never returns',
@@ -2826,6 +2890,210 @@ L.push({
 });
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>
+<script>/* EE2028 lesson track, part 3 — exam practice (Tutorial 2 and exam patterns) */
+(function (g) {
+'use strict';
+const L = g.LESSONS;
+const { HDR } = g.LESSON_UTIL;
+const norm = (s) => s.toUpperCase().replace(/\s+/g, ' ').replace(/\s*,\s*/g, ', ').trim();
+const rev32 = (x) => { let y = 0; for (let i = 0; i < 32; i++) y = (y << 1) | ((x >>> i) & 1); return y >>> 0; };
+const fibs = (n) => { const a = [0, 1]; while (a.length < n) a.push((a[a.length - 1] + a[a.length - 2]) >>> 0); return a.slice(0, n); };
+// run once with the student's own data, then with patched data that fits what they declared
+function dataCases(t, label, need, variants) {
+  const have = t.wordsAt(label);
+  const ok = variants.filter((v) => v.len <= have);
+  return { have, cases: [{ args: [], label: 'with your own data' }].concat(ok.map((v) => ({ args: [], memLabels: v.mem, label: v.label }))), short: have < need };
+}
+
+L.push({
+  id: 'u18', num: '18', title: 'Exam practice: Tutorial 2 patterns', tag: 'past-paper style',
+  body: `
+<p>EE2028 papers reuse Tutorial 2 closely. Q1 is the syntax-error MCQ format, Q2 and Q3 are the addressing-mode trace, Q4 reappeared as a 20-mark program and Q5 as a later paper's bit-manipulation question. Each paper has one long assembly program worth 15–20 marks, and about 2 of those marks are for syntax.</p>
+<h3>Traces: predict first, then step</h3>
+<p>Both traces below load with the tutorial's registers and memory (code at 0x100, data at 0x1000). Write your answer for every register and memory word on paper, then step through and compare.</p>
+<p><b>Tutorial 2 Q2.</b> R0 = 0x1000, R8 = 0x400, R9 = 0x500, R10 = 0x600, and memory 0x1000–0x1014 holds 1–6.</p>
+<pre class="asm" data-init="R0=0x1000,R1=0x2000,R2=0x1010,R3=0x300,R8=0x400,R9=0x500,R10=0x600" data-mem='{"4096":[1,2,3,4,5,6]}' data-opts='{"codeBase":256}'>    LDR R8, [R0]
+    LDR R9, [R0, #4]
+    ADD R10, R8, R9
+stop: B stop</pre>
+<p><b>Tutorial 2 Q3.</b> Same memory, with R1 = 0x2000, R6 = 20, R7 = 30. The two pre-index stores build a small descending stack by hand, and the post-index loads read it back.</p>
+<pre class="asm" data-init="R0=0x1000,R1=0x2000,R2=0x1010,R3=0x300,R4=0x200,R5=10,R6=20,R7=30,R8=0x400,R9=0x500,R10=0x600" data-mem='{"4096":[1,2,3,4,5,6]}' data-opts='{"codeBase":256}'>    STR R6, [R1, #-4]!
+    STR R7, [R1, #-4]!
+    LDR R8, [R1], #4
+    LDR R9, [R1], #4
+    SUB R10, R8, R9
+stop: B stop</pre>
+<div class="note">These addresses are not declared by the program. The Lecture memory model treats memory as flat, as the tutorial does, so they work. Switch Memory to STM32 and the same code bus-faults, because nothing is mapped at 0x1FF8 on the real board.</div>
+<h3>The long question</h3>
+<p>Almost every paper asks for the same skeleton: load a count and a pointer, loop over an array, test each element with an IT block, accumulate, and store the result to a variable. Marks go to correct addressing (<code>=LABEL</code> for the address, <code>LABEL</code> for the value), a terminating loop, and a store that does not attempt PC-relative STR.</p>
+<pre class="plain">    LDR  Rn, N            @ count (value)
+    LDR  Rp, =LIST        @ pointer (address)
+loop:
+    LDR  Rx, [Rp], #4     @ element, advance
+    CMP  Rx, ...
+    IT   cc
+    ...cc                 @ conditional update
+    SUBS Rn, Rn, #1
+    BNE  loop
+    LDR  Ra, =RESULT      @ no PC-relative STR
+    STR  Racc, [Ra]</pre>
+`,
+  exercises: [
+    {
+      id: 'u18e1', title: 'Tut 2 Q1: find the syntax errors',
+      prompt: '<p>The starter holds all twelve options from Tutorial 2 Q1. <b>Delete every line that is a syntax error</b>, and leave the valid ones exactly as written. Work out your answer first; then the Problems tab confirms each error and gives the reason.</p>',
+      starter: HDR + 'asm_func:\n    ADD R2, R2, R2              @ (a)\n    SUB R0, R1, [R2, #4]        @ (b)\n    MOV R0, R1, R2              @ (c)\n    LDR R0, R1                  @ (d)\n    ADDS R0, R1, R2, LSL #3     @ (e)\n    BLXAL LOL                   @ (f)\n    MVNS R1, R1                 @ (g)\n    EOR R1, R1, R1              @ (h)\n    RRX R1, R1                  @ (i)\n    TEQS R1, R2                 @ (j)\n    PUSH {R0-R16}               @ (k)\n    POPS {R0, R1, R2}           @ (l)\n    BX  LR\nLOL:\n',
+      solution: HDR + 'asm_func:\n    ADD R2, R2, R2              @ (a)\n    ADDS R0, R1, R2, LSL #3     @ (e)\n    MVNS R1, R1                 @ (g)\n    EOR R1, R1, R1              @ (h)\n    RRX R1, R1                  @ (i)\n    BX  LR\nLOL:\n',
+      hints: ['Seven of the twelve are errors.', 'Look for: memory operands outside LDR/STR, a MOV with two sources, LDR without brackets, BLX with a label, an S suffix on an instruction that has none, and a register that does not exist.'],
+      check: (t) => {
+        const want = ['ADD R2, R2, R2', 'ADDS R0, R1, R2, LSL #3', 'MVNS R1, R1', 'EOR R1, R1, R1', 'RRX R1, R1'];
+        const got = t.prog.instrs.map((i) => norm(i.text)).filter((x) => x !== 'BX LR');
+        const missing = want.filter((w) => !got.includes(w));
+        const extra = got.filter((x) => !want.includes(x));
+        return [
+          t.req(!missing.length, 'every valid line kept', `you deleted a valid line: ${missing.join('; ')}`),
+          t.req(!extra.length, 'no extra or edited lines', `remove or restore: ${extra.join('; ')} (the task is to delete the errors, not repair them)`)
+        ];
+      }
+    },
+    {
+      id: 'u18e2', title: 'Tut 2 Q4: count the negatives',
+      prompt: '<p>Count the negative integers in a list of n words and store the count in <code>NEGNUM</code>. n is stored at <code>N</code>, and the list starts at <code>NUMBERS</code>. Use an IT block for the conditional increment, not a branch. (This one became a 20-mark question.)</p><p>The checker runs your code on your own data, then rewrites N and the list with other test data. Keep at least 8 words in NUMBERS.</p>',
+      starter: HDR + 'asm_func:\n    @ your code here\n\n    BX  LR\n\nN:       .word 8\nNUMBERS: .word 5, -3, 0, -1, 7, -2147483648, 2147483647, -9\n    .lcomm NEGNUM, 4\n',
+      solution: HDR + 'asm_func:\n    LDR   R1, N           @ n (value)\n    LDR   R2, =NUMBERS    @ pointer (address)\n    MOV   R3, #0          @ count\nloop:\n    LDR   R0, [R2], #4\n    CMP   R0, #0\n    IT    LT\n    ADDLT R3, R3, #1\n    SUBS  R1, R1, #1\n    BNE   loop\n    LDR   R0, =NEGNUM\n    STR   R3, [R0]\n    BX    LR\n\nN:       .word 8\nNUMBERS: .word 5, -3, 0, -1, 7, -2147483648, 2147483647, -9\n    .lcomm NEGNUM, 4\n',
+      hints: ['N needs its value (LDR Rn, N); NUMBERS needs its address (LDR Rp, =NUMBERS).', 'CMP Rx, #0 then IT LT / ADDLT.', 'No STR Rx, NEGNUM: get &NEGNUM with LDR =, then STR.'],
+      check: (t) => {
+        const p = t.prog;
+        const base = [
+          t.uses('IT', 'use an IT block for the conditional count'),
+          t.req(p.labels.N && p.labels.N.kind === 'word' && p.labels.NUMBERS && p.labels.NEGNUM && p.labels.NEGNUM.kind === 'lcomm', 'N, NUMBERS (.word) and NEGNUM (.lcomm) declared', 'keep N, NUMBERS and .lcomm NEGNUM, 4')
+        ];
+        if (!base[1][0].ok) return base;
+        const d = dataCases(t, 'NUMBERS', 8, [
+          { len: 6, label: 'N=6, [1, -2, 3, -4, 5, -6]', mem: { N: 6, NUMBERS: [1, -2, 3, -4, 5, -6] } },
+          { len: 3, label: 'N=3, [4, 0, 9]', mem: { N: 3, NUMBERS: [4, 0, 9] } },
+          { len: 8, label: 'N=8, all negative', mem: { N: 8, NUMBERS: [-1, -2, -3, -4, -5, -6, -7, -2147483648] } },
+          { len: 1, label: 'N=1, [-1]', mem: { N: 1, NUMBERS: [-1] } }
+        ]);
+        const rows = base.concat([t.req(!d.short, 'NUMBERS has room for the tests', `NUMBERS only has ${d.have} words; keep at least 8 so the checker can load test data`)]);
+        return rows.concat([t.fn(d.cases, (m) => { const n = t.word(m, 'N'); let c = 0; for (let k = 0; k < n; k++) if ((t.word(m, 'NUMBERS', k) | 0) < 0) c++; return { words: { NEGNUM: c } }; }, { allowHalt: true })]);
+      }
+    },
+    {
+      id: 'u18e3', title: 'Tut 2 Q5: reverse the bits of R2',
+      prompt: '<p>Reverse the bit order of R2 in place: 1110…0100 becomes 0010…0111. Use shift and rotate instructions. RBIT does the job in one instruction on a real M4, but it is outside the syllabus. The checker puts the value in R2 and reads R2 afterwards.</p>',
+      starter: HDR + '@ value in R2, result in R2\nasm_func:\n    @ your code here\n\n    BX  LR\n',
+      solution: HDR + '@ value in R2, result in R2\nasm_func:\n    MOV  R3, #0\n    MOV  R1, #32\nloop:\n    LSLS R2, R2, #1     @ C = bit leaving the top of R2\n    RRX  R3, R3         @ C enters the top of R3, R3 shifts right\n    SUBS R1, R1, #1\n    BNE  loop\n    MOV  R2, R3\n    BX   LR\n',
+      hints: ['Take bits off one end of R2 and push them onto the opposite end of another register, 32 times.', 'LSLS puts the old bit 31 into C; RRX feeds C into bit 31 while shifting right.'],
+      check: (t) => [t.fn([0xE0000004, 1, 0x80000000, 0x12345678, 0xFFFFFFFF, 0, 0xF0F00001].map((x) => ({ args: [0, 0, x], label: `R2 = ${'0x' + (x >>> 0).toString(16).toUpperCase().padStart(8, '0')}` })), (a, b, x) => ({ R2: rev32(x) }), { hex: true, allowHalt: true })]
+    },
+    {
+      id: 'u18e4', title: 'Tut 2 Q6: Fibonacci into memory',
+      prompt: '<p>Store the first n Fibonacci numbers (0, 1, 1, 2, 3, 5, …) in consecutive words starting at <code>MEMLOC</code>. n (&gt; 2) is stored at <code>N</code>. MEMLOC must be writable, so reserve it with .lcomm and make it big enough for n = 30.</p>',
+      starter: HDR + 'asm_func:\n    @ your code here\n\n    BX  LR\n\nN:  .word 8\n    .lcomm MEMLOC, 120\n',
+      solution: HDR + 'asm_func:\n    LDR  R0, N\n    LDR  R1, =MEMLOC\n    MOV  R2, #0             @ F(k-2)\n    MOV  R3, #1             @ F(k-1)\n    STR  R2, [R1], #4\n    STR  R3, [R1], #4\n    SUB  R0, R0, #2         @ two already stored\nloop:\n    ADD  R12, R2, R3\n    STR  R12, [R1], #4\n    MOV  R2, R3\n    MOV  R3, R12\n    SUBS R0, R0, #1\n    BNE  loop\n    BX   LR\n\nN:  .word 8\n    .lcomm MEMLOC, 120\n',
+      hints: ['Store 0 and 1 first, then loop n − 2 times.', 'Post-index STR walks the output pointer: STR Rx, [R1], #4.'],
+      check: (t) => {
+        const p = t.prog;
+        const ok = p.labels.N && p.labels.MEMLOC && p.labels.MEMLOC.kind === 'lcomm';
+        if (!ok) return [t.req(false, 'N (.word) and MEMLOC (.lcomm)', 'declare N: .word … and .lcomm MEMLOC, 120')];
+        const room = p.lcomms.find((x) => x.name === 'MEMLOC').size / 4;
+        const cases = [{ args: [], label: 'with your own N' }].concat([3, 8, 20, 30].filter((n) => n <= room).map((n) => ({ args: [], memLabels: { N: n }, label: `N = ${n}` })));
+        return [t.req(room >= 30, 'MEMLOC holds 30 words', `MEMLOC has room for ${room} words; reserve at least 120 bytes`),
+          t.fn(cases, (m) => ({ words: { MEMLOC: fibs(t.word(m, 'N')) } }), { allowHalt: true })];
+      }
+    },
+    {
+      id: 'u18e5', title: 'Lecture 3 §4.4: sum a list into SUM',
+      prompt: '<p>The lecture’s closing example: add N numbers that start at <code>NUM1</code> (N stored at <code>N</code>) and store the total in <code>SUM</code>. Keep at least 6 words in NUM1.</p>',
+      starter: HDR + 'asm_func:\n    @ your code here\n\n    BX  LR\n\nN:    .word 5\nNUM1: .word 10, 20, 30, -5, 7, 0\n    .lcomm SUM, 4\n',
+      solution: HDR + 'asm_func:\n    LDR  R1, N\n    LDR  R2, =NUM1\n    MOV  R0, #0\nLOOP:\n    LDR  R3, [R2], #4\n    ADD  R0, R0, R3\n    SUBS R1, R1, #1\n    BGT  LOOP\n    LDR  R4, =SUM\n    STR  R0, [R4]\n    BX   LR\n\nN:    .word 5\nNUM1: .word 10, 20, 30, -5, 7, 0\n    .lcomm SUM, 4\n',
+      hints: ['The slide’s own hint: PC-relative STR is not permitted, so storing SUM takes two instructions.', 'R4 is used freely here as in the lecture; in a C-callable function you would save it.'],
+      check: (t) => {
+        const p = t.prog;
+        if (!(p.labels.N && p.labels.NUM1 && p.labels.SUM && p.labels.SUM.kind === 'lcomm')) return [t.req(false, 'N, NUM1 (.word) and SUM (.lcomm)', 'keep N, NUM1 and .lcomm SUM, 4')];
+        const d = dataCases(t, 'NUM1', 6, [
+          { len: 6, label: 'N=6, [1, 2, 3, 4, 5, 6]', mem: { N: 6, NUM1: [1, 2, 3, 4, 5, 6] } },
+          { len: 2, label: 'N=2, [-100, 40]', mem: { N: 2, NUM1: [-100, 40] } },
+          { len: 1, label: 'N=1, [2028]', mem: { N: 1, NUM1: [2028] } }
+        ]);
+        return [t.req(!d.short, 'NUM1 has room for the tests', `NUM1 has ${d.have} words; keep at least 6`),
+          t.fn(d.cases, (m) => { let s = 0; for (let k = 0; k < t.word(m, 'N'); k++) s += t.word(m, 'NUM1', k) | 0; return { words: { SUM: s } }; }, { allowHalt: true })];
+      }
+    },
+    {
+      id: 'u18e6', title: 'Long question: sensor stream',
+      prompt: '<p>A weight sensor writes a stream of signed words at the address in R0. Power-up calibration produces one or more <b>leading</b> −1 values to ignore. A −1 that comes after the first real reading is a real reading. A 0 ends the stream. Multiply each valid reading by the scale factor in R1, accumulate, and return the total in R0.</p><pre class="c">int asm_func(const int *data, int scale);</pre>',
+      starter: HDR + '@ int asm_func(const int *data, int scale)\nasm_func:\n    @ your code here\n\n    BX  LR\n',
+      solution: HDR + '@ int asm_func(const int *data, int scale)\nasm_func:\n    MOV  R2, #0             @ total\nskip:\n    LDR  R3, [R0], #4\n    CMN  R3, #1             @ calibration -1?\n    BEQ  skip\nloop:\n    CMP  R3, #0             @ end marker\n    BEQ  done\n    MLA  R2, R3, R1, R2     @ total += reading * scale\n    LDR  R3, [R0], #4\n    B    loop\ndone:\n    MOV  R0, R2\n'.replace(/\n$/, '\n    BX  LR\n'),
+      hints: ['Two loops: one that only skips −1, then the main loop. Once you leave the first loop you never test for −1 again.', 'CMN R3, #1 sets Z when R3 is −1.', 'MLA does the scale-and-accumulate in one instruction.'],
+      check: (t) => [t.fn([
+        [[-1, -1, -1, 5, 7, 2, 0], 3],
+        [[4, 6, 0], 10],
+        [[-1, 8, -1, 3, 0, 99], 2],
+        [[-1, -1, 0], 5],
+        [[0, 5, 5], 7],
+        [[-1, -20, 30, 0], -3]
+      ], (a, k) => { let i = 0, s = 0; while (a[i] === -1) i++; for (; a[i] !== 0; i++) s += a[i] * k; return s; })]
+    },
+    {
+      id: 'u18e7', title: 'Tut 4 Q1: set PB14 to output mode',
+      prompt: '<p>Port B pin 14 drives an LED. Configure its mode as general-purpose output (<code>GPIOB_MODER</code> bits 29:28 = 01) <b>without changing any other pin</b>. GPIOB_MODER is at 0x48000400. Read the register, change only those two bits, and write it back.</p>',
+      starter: HDR + '    .equ GPIOB_MODER, 0x48000400\nasm_func:\n    @ your code here\n\n    BX  LR\n',
+      solution: HDR + '    .equ GPIOB_MODER, 0x48000400\nasm_func:\n    LDR R1, =GPIOB_MODER    @ address of the register\n    LDR R0, [R1]            @ read\n    BIC R0, R0, #0x30000000 @ clear bits 29:28\n    ORR R0, R0, #0x10000000 @ set them to 01\n    STR R0, [R1]            @ write back\n    BX  LR\n',
+      hints: ['A .equ symbol is a number, so LDR R1, =GPIOB_MODER gives you the register address.', 'BIC clears the two-bit field, ORR sets the 01 pattern; both constants are valid Op2 patterns.'],
+      check: (t) => [t.fn([0xFFFFFEBF, 0, 0x30000000, 0x12345678].map((v) => ({ args: [], mem: { 0x48000400: v }, label: 'GPIOB_MODER = 0x' + (v >>> 0).toString(16).toUpperCase().padStart(8, '0') })),
+        (m, c) => { const v = c.mem[0x48000400]; return { mem: { 0x48000400: ((v & ~0x30000000) | 0x10000000) >>> 0 } }; })]
+    },
+    {
+      id: 'u18e8', title: 'Application: EV battery monitor (20 marks)',
+      prompt: '<p>The lecture’s EV application question. Run <b>forever</b>. On every pass, read <code>DestDist</code> and <code>SOCDist</code>, average the four words starting at <code>SOH</code>, and compare the mean with <code>HT</code>. All values are unsigned. If SOCDist &lt; DestDist <b>and</b> the mean &lt; HT, write 0xBAD to <code>CONSOLE</code>. If exactly one of the two holds, write 0xC0DE1. If neither holds, write nothing.</p><p>The data keeps changing while the car drives, so the checker also changes DestDist and SOH while your loop runs and expects CONSOLE to follow. The slide’s own “possible solution” passes the first five checks and fails the last two (see the Tutorials tab).</p>',
+      starter: HDR + '@ EV battery monitor: never returns\nasm_func:\n    @ your code here\n\n' + '\nDestDist: .word 300\nSOCDist:  .word 200\nHT:       .word 80\nSOH:      .word 70, 72, 68, 74\n    .lcomm CONSOLE, 4           @ stands in for the peripheral register\n',
+      solution: HDR + '@ EV battery monitor: never returns\n' + 'asm_func:\n    LDR     R5, =CONSOLE        @ peripheral register address (fixed)\n    MOV     R9, #0xBAD          @ alarm code\n    LDR     R10, =0xC0DE1       @ error code (17-32 bit value: literal pool)\n    LDR     R3, =SOH            @ SOH base never moves: offsets, not a walking pointer\nFOREVER:\n    LDR     R1, DestDist        @ re-read the changing values every pass\n    LDR     R2, SOCDist\n    LDR     R4, HT\n    LDR     R0, [R3]            @ exactly four readings: unrolled, no counter\n    LDR     R7, [R3, #4]\n    ADD     R0, R0, R7\n    LDR     R7, [R3, #8]\n    ADD     R0, R0, R7\n    LDR     R7, [R3, #12]\n    ADD     R0, R0, R7          @ R0 = sum of 4 SOH\n    MOV     R6, #0              @ number of conditions true\n    CMP     R2, R1              @ SOCDist < DestDist ?\n    IT      LO\n    MOVLO   R6, #1\n    CMP     R4, R0, LSR #2      @ HT > mean ?  (mean = sum >> 2 via the barrel shifter)\n    IT      HI\n    ADDHI   R6, R6, #1\n    CMP     R6, #1\n    IT      HI\n    STRHI   R9, [R5]            @ both true: alarm (one write, no 0xC0DE1 glitch)\n    IT      EQ\n    STREQ   R10, [R5]           @ exactly one: error message\n    B       FOREVER             @ neither: write nothing\n' + '\nDestDist: .word 300\nSOCDist:  .word 200\nHT:       .word 80\nSOH:      .word 70, 72, 68, 74\n    .lcomm CONSOLE, 4           @ stands in for the peripheral register\n',
+      hints: ['Put the forever-loop label above everything that must happen again: re-reading the data and recomputing the SOH sum.', 'There are always exactly four readings, so four LDRs with offsets [R3], [R3, #4], [R3, #8], [R3, #12] need no loop, counter or pointer reset. Mean = sum >> 2, which the barrel shifter can do inside a CMP: CMP R4, R0, LSR #2.', 'Unsigned "less than" is LO ("greater than" is HI). Counting how many conditions are true (0, 1 or 2) avoids nested IT blocks and writes CONSOLE once.'],
+      check: (t) => {
+        const p = t.prog, EM = g.EMU;
+        const need = ['DestDist', 'SOCDist', 'HT', 'SOH', 'CONSOLE'];
+        const miss = need.filter((n) => !p.labels[n]);
+        if (miss.length) return [t.req(false, 'data labels kept', 'keep DestDist, SOCDist, HT, SOH and CONSOLE from the starter (missing: ' + miss.join(', ') + ')')];
+        if (t.wordsAt('SOH') < 4) return [t.req(false, 'SOH has four words', 'SOH needs four readings')];
+        const sc = [
+          ['distance short AND SOH low', { DestDist: 300, SOCDist: 200, HT: 80, SOH: [70, 72, 68, 74] }, 0xBAD],
+          ['distance short only', { DestDist: 300, SOCDist: 200, HT: 80, SOH: [90, 92, 88, 94] }, 0xC0DE1],
+          ['SOH low only', { DestDist: 100, SOCDist: 200, HT: 80, SOH: [70, 72, 68, 74] }, 0xC0DE1],
+          ['all fine', { DestDist: 100, SOCDist: 200, HT: 80, SOH: [90, 92, 88, 94] }, 0],
+          ['equal distance, mean exactly HT', { DestDist: 200, SOCDist: 200, HT: 80, SOH: [80, 80, 80, 80] }, 0]
+        ];
+        const runFor = (m, n) => { for (let k = 0; k < n && !m.halted; k++) m.step(false); };
+        const rows = sc.map(([name, mem, want]) => {
+          const m = new EM.Machine(p, t.init([], { memLabels: mem })); runFor(m, 3000);
+          const got = t.word(m, 'CONSOLE') >>> 0;
+          const okRun = !m.halted;
+          return { ok: okRun && got === want, label: name, detail: !okRun ? 'the monitor stopped: ' + (m.haltReason || 'it must loop forever') : got === want ? 'CONSOLE = 0x' + got.toString(16).toUpperCase() : `expected CONSOLE = 0x${want.toString(16).toUpperCase()}, got 0x${got.toString(16).toUpperCase()}`, debug: { args: [], memLabels: mem } };
+        });
+        const live = (label, steps) => {
+          const m = new EM.Machine(p, t.init([], { memLabels: { DestDist: 100, SOCDist: 200, HT: 80, SOH: [90, 92, 88, 94] } }));
+          runFor(m, 3000);
+          const a1 = t.word(m, 'CONSOLE') >>> 0;
+          m.write32(p.labels.DestDist.addr, 900, true);                  // driver picks a far destination
+          runFor(m, 3000);
+          const a2 = t.word(m, 'CONSOLE') >>> 0;
+          [60, 61, 59, 62].forEach((v, k) => m.write32(p.labels.SOH.addr + 4 * k, v, true));   // batteries degrade
+          runFor(m, 3000);
+          const a3 = t.word(m, 'CONSOLE') >>> 0;
+          return [
+            { ok: !m.halted && a1 === 0 && a2 === 0xC0DE1, label: 'DestDist changes mid-journey', detail: a2 === 0xC0DE1 ? 'error message appears after DestDist rises to 900' : `CONSOLE stayed 0x${a2.toString(16).toUpperCase()} after DestDist rose to 900: the new value is never read`, debug: { args: [], memLabels: { DestDist: 900, SOCDist: 200, HT: 80, SOH: [90, 92, 88, 94] } } },
+            { ok: !m.halted && a3 === 0xBAD, label: 'then SOH readings drop', detail: a3 === 0xBAD ? 'alarm 0xBAD once both conditions hold' : m.halted ? 'the monitor stopped: ' + m.haltReason : `CONSOLE = 0x${a3.toString(16).toUpperCase()} after SOH fell below HT, expected 0xBAD (is the SOH sum, pointer and count reset every pass?)` }
+          ];
+        };
+        return rows.concat(live());
+      }
+    }
+  ]
+});
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>window.TUTORIALS = null;</script>
 <script>(function (g) {
 g.REF_HTML = `
 <div class="unit-kicker">Reference</div>
@@ -2933,7 +3201,9 @@ g.REF_HTML = `
 <tr><td>LR</td><td>Shown without the Thumb bit (bit 0). On hardware LR is odd and BX needs bit 0 set.</td></tr>
 <tr><td><code>LDR Rd, =small</code></td><td>Always uses the literal pool, as in the lecture. GNU as may emit a MOV instead when the value fits.</td></tr>
 <tr><td>R4–R11 in tests</td><td>The checker preloads them with 0xCA11000n, values a C caller might be holding, so it can tell whether you restored them.</td></tr>
-<tr><td>verification</td><td>The ALU, shift, multiply and divide semantics (including every flag) were cross-checked against the Unicorn CPU emulator on 6,000 random cases.</td></tr>
+<tr><td>verification</td><td>Three independent checks. (1) <b>Real toolchain</b>: every lesson solution across all its test inputs, plus the course's own programs (Tutorial 2 Q4–Q6, Tutorial 4 Q1, Lecture Ex 2a/2b, Lecture 3 §4.4, the sensor and EV application slides), assembled with GNU as 2.42 and run as Thumb-2 machine code in Unicorn: 296/296 runs give identical registers and memory. (2) <b>Syntax</b>: 115 single lines compared with GNU as; the 18 differences are deliberate (11 outside the syllabus, 7 where the course answer key is stricter than GNU as, e.g. TEQS, BLX label). (3) <b>ALU</b>: 6,000 random flag/shift/multiply/divide cases against Unicorn, 0 mismatches.</td></tr>
+<tr><td>Thumb bit</td><td>BL/BX LR work as in the lecture (LR shown without bit 0). A function address you load yourself must be odd: mark the label with <code>.thumb_func</code> (or <code>.type name, %function</code>) and <code>LDR Rx, =name</code> sets bit 0. BX/BLX to an even code address faults, as it does on the chip.</td></tr>
+<tr><td>memory models</td><td><b>Lecture</b>: memory is flat, as in the slides and tutorials; any address can be read or written, and the trace notes when an address lies outside your program's regions. <b>STM32</b>: only code/.word (read-only flash) and SRAM exist; anything else bus-faults. Exercise checks always use strict mapping so a bad pointer is reported as a fault.</td></tr>
 </table></div>
 `;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -2949,8 +3219,8 @@ const sd = (v) => String(v | 0);
 /* ---------- persistence: everything you do is cached in this browser ---------- */
 const KEY = 'ee2028-asm-workbench-v1';
 const SCHEMA = 2;
-const MAPS = ['done', 'attempts', 'hints', 'solSeen', 'lastCheck', 'bps', 'drafts'];
-const blank = () => ({ v: SCHEMA, done: {}, attempts: {}, hints: {}, solSeen: {}, lastCheck: {}, bps: {}, drafts: {}, sandbox: null, loc: null, memModel: 'lecture', speed: '0', started: Date.now(), updated: 0 });
+const MAPS = ['done', 'attempts', 'hints', 'solSeen', 'lastCheck', 'bps', 'drafts', 'tutSeen'];
+const blank = () => ({ v: SCHEMA, done: {}, attempts: {}, hints: {}, solSeen: {}, lastCheck: {}, bps: {}, drafts: {}, tutSeen: {}, sandbox: null, loc: null, memModel: 'lecture', speed: '0', started: Date.now(), updated: 0 });
 function migrate(s) {
   const o = Object.assign(blank(), s && typeof s === 'object' ? s : {});
   for (const k of MAPS) if (!o[k] || typeof o[k] !== 'object' || Array.isArray(o[k])) o[k] = {};
@@ -3143,7 +3413,8 @@ function parseArg(str) {
   const v = parseNum(s);
   return { v: isNaN(v) ? null : v, ok: !isNaN(v) };
 }
-argEls.forEach((el) => el.addEventListener('change', () => { el.style.borderColor = parseArg(el.value).ok ? '' : 'var(--bad)'; if (S.prog && S.prog.ok) resetMachine(); }));
+argEls.forEach((el) => el.addEventListener('change', () => {
+  if (S.ctx === 'sandbox') { store.sandboxArgs = argEls.map((x) => x.value); save(); } el.style.borderColor = parseArg(el.value).ok ? '' : 'var(--bad)'; if (S.prog && S.prog.ok) resetMachine(); }));
 function setArgs(args) { argEls.forEach((el, i) => { const a = args[i]; el.value = a === undefined || a === null ? '' : Array.isArray(a) ? '[' + a.join(', ') + ']' : String(a); el.style.borderColor = ''; }); }
 function buildInit(prog) {
   const regs = {}, arrays = [];
@@ -3157,7 +3428,8 @@ function buildInit(prog) {
   });
   if (S.extraRegs) Object.assign(regs, S.extraRegs);
   const mem = {};
-  if (S.pendingMem) for (const [k, v] of Object.entries(S.pendingMem)) if (prog.labels[k]) mem[prog.labels[k].addr] = v >>> 0;
+  if (S.extraMem) for (const [k, v] of Object.entries(S.extraMem)) mem[+k] = v;
+  if (S.pendingMem) for (const [k, v] of Object.entries(S.pendingMem)) if (prog.labels[k]) mem[prog.labels[k].addr] = Array.isArray(v) ? v : v >>> 0;
   return { regs, arrays, mem };
 }
 
@@ -3265,6 +3537,7 @@ function annot(v, regIdx) {
   if (p.fakeWord.has(v) && regIdx !== 13) return `instruction word: ${p.fakeWord.get(v).text}`;
   const labs = p.symbolsByAddr[v];
   if (labs) return '&' + labs.join(' / ');
+  if ((v & 1) && p.symbolsByAddr[v - 1] && p.byAddr.get(v - 1)) return '&' + p.symbolsByAddr[v - 1].join(' / ') + ' | 1 (Thumb bit)';
   if (S.m && S.m.arrays) for (let k = 0; k < S.m.arrays.length; k++) { const A = S.m.arrays[k]; if (v >= A.addr && v <= A.addr + 4 * A.values.length) return `&arg${k + 1}[${(v - A.addr) / 4}]`; }
   if (regIdx === 13) return 'stack pointer';
   if (v >= 0xCA110004 && v <= 0xCA11000B && regIdx >= 4 && regIdx <= 11) return 'caller’s value';
@@ -3319,6 +3592,12 @@ function renderMemData() {
     any = true;
     h += `<tr class="grp"><td colspan="4">literal pool · made by LDR =</td></tr>`;
     for (const L of p.literals) h += memRow(L.addr, '=' + (L.desc.startsWith('address of ') ? L.desc.slice(11) : L.desc.replace(/^constant /, '').replace(/^\.equ /, '').replace(/ = .*/, '')), '', L.desc);
+  }
+  const extraAddrs = new Set([...(m.touched || [])].concat(Object.keys(S.extraMem || {}).flatMap((k) => [].concat(S.extraMem[k]).map((_, i) => +k + 4 * i))));
+  if (extraAddrs.size) {
+    any = true;
+    h += `<tr class="grp"><td colspan="4">other addresses used · peripherals / tutorial memory</td></tr>`;
+    [...extraAddrs].sort((x, y) => x - y).slice(0, 48).forEach((ad) => { h += memRow(ad, ad >= 0x40000000 && ad < 0x60000000 ? 'periph' : ''); });
   }
   if (p.lcomms.length) {
     any = true;
@@ -3502,7 +3781,7 @@ function renderRail() {
   LESSONS.forEach((u, i) => {
     const d = u.exercises.filter((e) => store.done[e.id]).length;
     h += `<button data-u="${i}" aria-current="${S.ui === i && S.paneTab === 'lesson'}" title="Unit ${u.num}: ${esc(u.title)} (${d}/${u.exercises.length})">${u.num}<span class="fill"><i style="width:${100 * d / u.exercises.length}%"></i></span></button>`;
-    if (i === 0 || i === 7 || i === 14) h += '<div class="sep"></div>';
+    if (i === 0 || i === 7 || i === 14 || i === 17) h += '<div class="sep"></div>';
   });
   $('rail').innerHTML = h;
   progress();
@@ -3518,11 +3797,13 @@ function setPaneTab(t) {
   $('tabLesson').setAttribute('aria-selected', t === 'lesson');
   $('tabRef').setAttribute('aria-selected', t === 'ref');
   $('tabProg').setAttribute('aria-selected', t === 'progress');
+  if ($('tabTut')) $('tabTut').setAttribute('aria-selected', t === 'tutorials');
   renderPane(); renderRail();
 }
 $('tabLesson').addEventListener('click', () => setPaneTab('lesson'));
 $('tabRef').addEventListener('click', () => setPaneTab('ref'));
 $('tabProg').addEventListener('click', () => { setPaneTab('progress'); $('paneBody').scrollTop = 0; });
+if ($('tabTut')) $('tabTut').addEventListener('click', () => { setPaneTab('tutorials'); $('paneBody').scrollTop = 0; });
 $('progBtn').addEventListener('click', () => { setPaneTab('progress'); $('paneBody').scrollTop = 0; });
 
 function decorate(root) {
@@ -3534,7 +3815,7 @@ function decorate(root) {
       b.className = 'loadbtn';
       b.type = 'button';
       b.innerHTML = 'Load into workbench →';
-      b.addEventListener('click', () => loadExample(code, pre.dataset.init || '', pre.dataset.opts || '', k));
+      b.addEventListener('click', () => loadExample(code, pre.dataset.init || '', pre.dataset.opts || '', k, pre.dataset.mem || '', pre.dataset.name || ''));
       pre.after(b);
     }
   });
@@ -3543,6 +3824,7 @@ function renderPane() {
   const el = $('paneBody');
   if (S.paneTab === 'ref') { el.innerHTML = window.REF_HTML; decorate(el); return; }
   if (S.paneTab === 'progress') { el.innerHTML = renderProgress(); return; }
+  if (S.paneTab === 'tutorials') { el.innerHTML = renderTutorials(); decorate(el); return; }
   const u = LESSONS[S.ui];
   let h = `<div class="unit-kicker">Unit ${u.num} · ${esc(u.tag)}</div><h2>${esc(u.title)}</h2>${u.body}`;
   h += `<div class="ex-head"><h3>Exercises</h3><span class="mono" style="color:var(--muted);font-size:12px">${u.exercises.filter((e) => store.done[e.id]).length}/${u.exercises.length} passed</span></div><div class="ex-list">`;
@@ -3622,13 +3904,13 @@ function openExercise(ex, keepScroll) {
   S.ex = ex; S.ctx = 'exercise'; S.ui = ex.ui;
   loadBps();
   S.asmOpts = ex.opts || {};
-  S.pendingMem = null; S.extraRegs = null;
+  S.pendingMem = null; S.extraRegs = null; S.extraMem = null;
   setArgs([]);
   setCode(store.drafts[ex.id] != null ? store.drafts[ex.id] : ex.starter);
   setCtx('Exercise ' + ex.num, ex.title);
   store.loc = { ex: ex.id }; save();
   S.paneTab = 'lesson';
-  $('tabLesson').setAttribute('aria-selected', true); $('tabRef').setAttribute('aria-selected', false); $('tabProg').setAttribute('aria-selected', false);
+  $('tabLesson').setAttribute('aria-selected', true); $('tabRef').setAttribute('aria-selected', false); $('tabProg').setAttribute('aria-selected', false); if ($('tabTut')) $('tabTut').setAttribute('aria-selected', false);
   assemble();
   const st = $('paneBody').scrollTop;
   renderPane(); renderRail();
@@ -3651,11 +3933,12 @@ function checkNow() {
   if (card) card.scrollIntoView({ block: 'nearest' });
 }
 function splitInit(s) { const out = []; let d = 0, cur = ''; for (const ch of s) { if (ch === '[') d++; if (ch === ']') d--; if (ch === ',' && !d) { out.push(cur); cur = ''; } else cur += ch; } if (cur.trim()) out.push(cur); return out; }
-function loadExample(code, init, opts, k) {
+function loadExample(code, init, opts, k, memJson, name) {
   stopRun();
   saveDraftNow();
   const u = LESSONS[S.ui];
   S.ctx = 'example'; S.ex = null; loadBps();
+  S.extraMem = memJson ? JSON.parse(memJson) : null;
   S.asmOpts = opts ? JSON.parse(opts) : {};
   S.pendingMem = null; S.extraRegs = null;
   const args = [];
@@ -3667,9 +3950,9 @@ function loadExample(code, init, opts, k) {
   }
   argEls.forEach((el, i) => { el.value = args[i] || ''; el.style.borderColor = ''; });
   setCode(code.replace(/\s+$/, '') + '\n');
-  setCtx('Example', `Unit ${u.num}: ${u.title}`);
+  setCtx('Example', name || `Unit ${u.num}: ${u.title}`);
   assemble();
-  renderPane();
+  if (S.paneTab === 'lesson') renderPane();
 }
 const SANDBOX_DEFAULT = `    .syntax unified
     .thumb
@@ -3691,14 +3974,52 @@ asm_func:
 function openSandbox() {
   stopRun();
   saveDraftNow();
-  S.ctx = 'sandbox'; S.ex = null; S.asmOpts = {}; S.pendingMem = null; S.extraRegs = null; loadBps();
+  S.ctx = 'sandbox'; S.ex = null; S.asmOpts = {}; S.pendingMem = null; S.extraRegs = null; S.extraMem = null; loadBps();
   store.loc = { sandbox: true, ui: S.ui }; save();
   setCode(store.sandbox || SANDBOX_DEFAULT);
   setCtx('Sandbox', 'your scratch file (saved in this browser)');
-  if (!argEls.some((e) => e.value)) argEls[0].value = '14';
+  setArgs(store.sandboxArgs || ['14']);
   assemble(); renderPane();
 }
 $('bSandbox').addEventListener('click', openSandbox);
+
+/* ---------- tutorial recap ---------- */
+const tutAll = () => (window.TUTORIALS || []).flatMap((t) => t.qs);
+const tutTotal = () => tutAll().length;
+const tutReviewed = () => tutAll().filter((q) => store.tutSeen[q.id]).length;
+S.tutOpen = {};
+function renderTutorials() {
+  const T = window.TUTORIALS || [];
+  let h = `<div class="unit-kicker">Recap · by tutorial</div><h2>Tutorial questions and course solutions</h2>
+<p>Each question keeps its solution hidden so you can answer first, on paper or in the workbench. Reveal it, compare, then mark the question reviewed. Assembly answers load into the workbench, and the questions that have a checked exercise link to it.</p>
+<div class="tut-bar"><div class="chips">${T.map((t) => `<button class="chip ${t.qs.every((q) => store.tutSeen[q.id]) ? 'pass' : t.qs.some((q) => store.tutSeen[q.id]) ? 'tried' : ''}" type="button" data-jump="${t.id}" title="${esc(t.title)}">${t.num === 'A' ? 'Apps' : 'T' + t.num}</button>`).join('')}</div>
+<button class="btn" type="button" data-tut-all>${S.tutAllOpen ? 'Hide all solutions' : 'Show all solutions'}</button></div>
+<p class="muted-line">${tutReviewed()} of ${tutTotal()} questions reviewed</p>`;
+  for (const t of T) {
+    const seen = t.qs.filter((q) => store.tutSeen[q.id]).length;
+    h += `<section class="tut" id="tut-${t.id}"><div class="ex-head"><h3>${t.num === 'A' ? '' : 'Tutorial ' + t.num + ' · '}${esc(t.title)}</h3><span class="mono" style="color:var(--muted);font-size:12px">${seen}/${t.qs.length}</span></div>`;
+    h += `<p class="tut-src${t.mine ? ' mine' : ''}">${esc(t.src)}</p>`;
+    t.qs.forEach((q, i) => {
+      const open = S.tutAllOpen || S.tutOpen[q.id];
+      const ex = q.ex && allEx.find((e) => e.id === q.ex);
+      h += `<div class="tq${store.tutSeen[q.id] ? ' seen' : ''}" id="tq-${q.id}"><div class="tq-n">${t.num === 'A' ? 'A' + (i + 1) : 'Q' + (i + 1)}</div><div class="tq-body">${q.q}
+<div class="ex-actions"><button class="btn${open ? '' : ' primary'}" type="button" data-tq-sol="${q.id}">${open ? 'Hide solution' : 'Show solution'}</button>
+<button class="btn" type="button" data-tq-seen="${q.id}" aria-pressed="${!!store.tutSeen[q.id]}">${store.tutSeen[q.id] ? '✓ Reviewed' : 'Mark reviewed'}</button>
+${ex ? `<button class="btn" type="button" data-open="${ex.id}">Practise: Exercise ${ex.num}${store.done[ex.id] ? ' ✓' : ''} →</button>` : ''}</div>
+<div class="tq-sol"${open ? '' : ' hidden'}><div class="tq-label">${t.mine ? 'Worked answer (not official)' : 'Course solution'}</div>${q.a}</div></div></div>`;
+    });
+    h += `</section>`;
+  }
+  return h;
+}
+$('paneBody').addEventListener('click', (e) => {
+  const j = e.target.closest('[data-jump]'); if (j) { const s = document.getElementById('tut-' + j.dataset.jump); if (s) s.scrollIntoView({ block: 'start' }); return; }
+  if (e.target.closest('[data-tut-all]')) { S.tutAllOpen = !S.tutAllOpen; const st = $('paneBody').scrollTop; renderPane(); $('paneBody').scrollTop = st; return; }
+  const so = e.target.closest('[data-tq-sol]');
+  if (so) { const id = so.dataset.tqSol; S.tutOpen[id] = !(S.tutAllOpen || S.tutOpen[id]); if (S.tutAllOpen && !S.tutOpen[id]) S.tutAllOpen = false; const st = $('paneBody').scrollTop; renderPane(); $('paneBody').scrollTop = st; return; }
+  const sn = e.target.closest('[data-tq-seen]');
+  if (sn) { const id = sn.dataset.tqSeen; if (store.tutSeen[id]) delete store.tutSeen[id]; else store.tutSeen[id] = Date.now(); save(); const st = $('paneBody').scrollTop; renderPane(); $('paneBody').scrollTop = st; }
+});
 
 /* ---------- progress dashboard + backup ---------- */
 function nextUnpassed() {
@@ -3721,6 +4042,7 @@ function renderProgress() {
     <div class="tile"><b>${firstTry}</b><span>passed first try, no solution</span></div>
     <div class="tile"><b>${hints}</b><span>hints opened</span></div>
     <div class="tile"><b>${sols}</b><span>solutions viewed</span></div>
+    ${window.TUTORIALS ? `<div class="tile"><b>${tutReviewed()}<small>/${tutTotal()}</small></b><span>tutorial questions reviewed</span></div>` : ''}
   </div>`;
   h += `<p class="muted-line">Started ${fmtTime(store.started)} · last saved ${fmtTime(lastWrite || store.updated)}</p>`;
   if (nx) h += `<p><button class="btn primary" type="button" data-open="${nx.id}">Continue: ${nx.num} ${esc(nx.title)} →</button></p>`;
@@ -3768,6 +4090,7 @@ function mergeIn(raw) {
   for (const [k, v] of Object.entries(inc.solSeen)) if (!store.solSeen[k]) store.solSeen[k] = v;
   for (const [k, v] of Object.entries(inc.lastCheck)) if (!store.lastCheck[k] || (v && v.at > store.lastCheck[k].at)) store.lastCheck[k] = v;
   for (const [k, v] of Object.entries(inc.bps)) if (!store.bps[k]) store.bps[k] = v;
+  for (const [k, v] of Object.entries(inc.tutSeen)) if (!store.tutSeen[k]) store.tutSeen[k] = v;
   let drafts = 0;
   for (const [k, v] of Object.entries(inc.drafts)) {
     const ex = allEx.find((e) => e.id === k);
@@ -3790,6 +4113,26 @@ $('paneBody').addEventListener('click', (e) => {
   const b = e.target.closest('[data-bk]'); if (!b) return;
   const act = b.dataset.bk;
   if (act === 'export') {
+    const fname = `ee2028-progress-${new Date().toISOString().slice(0, 10)}.json`;
+    const payload = backupPayload();
+    (async () => {
+      let dl = null;
+      try { if (window.claude && typeof window.claude.use === 'function') dl = await window.claude.use('downloads'); } catch (_) { dl = null; }
+      if (dl) {   // inside the Claude artifact viewer: downloads go through the platform
+        try { await dl.save({ filename: fname, data: payload }); bkMsg('Backup saved.'); }
+        catch (err) { bkMsg(err && err.code === 'declined' ? 'Save cancelled.' : 'Saving a file is not available here; use Copy backup as text instead.', !(err && err.code === 'declined')); }
+        return;
+      }
+      const blob = new Blob([payload], { type: 'application/json' });
+      const a2 = document.createElement('a');
+      a2.href = URL.createObjectURL(blob); a2.download = fname;
+      document.body.appendChild(a2); a2.click(); a2.remove();
+      setTimeout(() => URL.revokeObjectURL(a2.href), 2000);
+      bkMsg('Backup downloaded. If nothing appeared, your browser blocked the download; use Copy instead.');
+    })();
+    return;
+  }
+  if (act === 'export-old') {
     const blob = new Blob([backupPayload()], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
