@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sai Wai Phyo — Emerging Engineer</title>
+<script>try{if(localStorage.getItem("theme")==="futaba")location.replace("eng/")}catch(e){}</script>
 <style>
   /* Academic Brutalist — Information density over aesthetics */
   :root {
@@ -367,10 +368,23 @@
     color: var(--accent);
   }
 
+  /* Theme switch — a quiet way into the imageboard version */
+  .theme-switch {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    font-family: "Courier New", monospace;
+    font-size: 11px;
+    color: var(--gray);
+  }
+  .theme-switch a { color: var(--gray); text-decoration: none; }
+  .theme-switch a:hover { color: var(--accent); }
+
   /* Print friendliness */
   @media print {
     .status { animation: none; }
     body { font-size: 12px; }
+    .theme-switch { display: none; }
   }
 
   @media (max-width: 600px) {
@@ -383,9 +397,11 @@
 </head>
 <body>
 
+<div class="theme-switch">[<a href="eng/" onclick="try{localStorage.setItem('theme','futaba')}catch(e){}" title="Switch to the imageboard version">futaba</a>]</div>
+
 <header>
   <h1>Sai Wai Phyo</h1>
-  <div class="subtitle">Emerging Engineer — Propulsion · RF Systems · Aerospace Propulsion</div>
+  <div class="subtitle">Emerging Engineer — Robotics · RF Systems · Aerospace Propulsion</div>
   <div class="contact-line">
     <a href="mailto:e1527360@u.nus.edu">e1527360@u.nus.edu</a>
     <span>·</span>
@@ -412,7 +428,7 @@
 
 <div class="availability">
   <span class="status"></span>
-  Available: Summer Internship (Jun – Dec 2027) · 6-month engagements preferred 
+  Incoming: 6-month internship · May – Dec · San Francisco, USA
 </div>
 
 <!-- PROFILE -->
@@ -420,11 +436,11 @@
   <h2>Profile</h2>
   <div class="profile">
     <p>
-      I build hardware that has to work in environments where failure is not an option — from liquid rocket engines at 650psi to subsea RF antenna systems to stratospheric payloads. My core strength is systems integration across mechanical, electrical, and software domains: taking a subsystem from requirements to test in the shortest possible time, questioning every inherited assumption along the way.
+      I build hardware that has to work in environments where failure is not an option. From liquid rocket engines at 650psi to subsea RF antenna systems to stratospheric payloads. My core strength is systems integration across mechanical, electrical, and software domains: taking a subsystem from requirements to test and operation.
     </p>
     <br>
     <p>
-      Currently a Year 1 Electrical Engineering student at NUS. Formerly Aeronautical Engineering (Diploma, GPA 3.75/4.0) at Singapore Polytechnic. Self-taught in liquid propulsion, RF systems integration, FPGA-based signal processing, and embedded systems — not from coursework but from building things and letting reality correct the model.
+      Currently a Year 2 Electrical Engineering student at NUS. Formerly Aeronautical Engineering (Diploma, GPA 3.75/4.0) at Singapore Polytechnic. Self-taught in liquid propulsion, RF systems integration, FPGA-based signal processing, and embedded systems. Not from coursework but from building things and letting reality correct the model.
   </div>
 
   <div class="stats-bar">
@@ -564,7 +580,8 @@
     </div>
     <div class="project-org">Fluid Dynamics and Combustion Domain · Singapore · NDA</div>
     <ul class="exp-bullets">
-      <li>Collaborating with PhD researchers on propulsion-adjacent hardware development.</li>
+      <li>Electromechanical and structural design for propulsion system with thrust vector control.</li>
+      <li>Research on bipropellant combustor.</li>
     
     </ul>
   </div>
@@ -649,7 +666,7 @@
       <h3>Bachelor of Electrical Engineering — National University of Singapore</h3>
       <div class="exp-date">Aug 2025 – May 2029</div>
     </div>
-    <p style="font-size:13px; margin-top:4px;">Year 1 · Singapore</p>
+    <p style="font-size:13px; margin-top:4px;">Year 2 · Singapore</p>
   </div>
   <div class="experience">
     <div class="exp-header">
@@ -680,7 +697,7 @@
 </section>
 
 <footer>
-  <div>Sai Wai Phyo · Last updated May 2026</div>
+  <div>Sai Wai Phyo · Last updated Nov 2026</div>
   <div>Built with HTML. No frameworks were harmed.</div>
 </footer>
 
